@@ -34,7 +34,7 @@ export function PalettePanel({
   return (
     <div
       style={{
-        width: 158,
+        width: 200,
         background: UI_COLORS.white,
         borderRight: `1px solid ${UI_COLORS.borderLight}`,
         overflowY: "auto",
@@ -56,7 +56,7 @@ export function PalettePanel({
       {PALETTE_GROUPS.map(({ group, keys }) => (
         <div key={group}>
           <SectionTitle>{group}</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
             {keys.map((key) => {
               const def = GATE_DEFS[key];
               return (
