@@ -1,4 +1,4 @@
-import { GATE_DEFS, UI_COLORS } from "../constants";
+import { ERROR_COLORS, GATE_DEFS, UI_COLORS } from "../constants";
 import type { CircuitElement, DropPreview } from "../types";
 import { fmt } from "../utils/layout";
 
@@ -34,14 +34,14 @@ export function StatusBar({ nQ, nS, elementCount, selectedElement, dropPreview, 
             : dropPreview
               ? dropPreview.valid
                 ? UI_COLORS.green300
-                : UI_COLORS.red300
+                : ERROR_COLORS.muted
               : UI_COLORS.slate400,
         }}
       >
         {selectedElement ? selectedMessage(selectedElement) : dropPreview ? dropMessage(dropPreview) : "Drag a gate or connector from the palette"}
       </span>
       {errorSteps > 0 ? (
-        <span style={{ color: UI_COLORS.red300 }}>⚠ {errorSteps} col{errorSteps !== 1 ? "s" : ""} with errors</span>
+        <span style={{ color: ERROR_COLORS.muted }}>⚠ {errorSteps} col{errorSteps !== 1 ? "s" : ""} with errors</span>
       ) : null}
       <div style={{ flex: 1 }} />
       <span style={{ color: UI_COLORS.slate600 }}>

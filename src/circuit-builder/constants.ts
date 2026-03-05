@@ -37,6 +37,13 @@ export const UI_COLORS = {
   violet600: "#7c3aed",
 } as const;
 
+export const ERROR_COLORS = {
+  primary: UI_COLORS.red600,
+  muted: UI_COLORS.red300,
+  label: UI_COLORS.red400,
+  previewFill: "rgba(239,68,68,.10)",
+} as const;
+
 export const CW = 64;
 export const CH = 52;
 export const LW = 90;

@@ -1,4 +1,4 @@
-import { CH, CONNECTOR_BLACK, CW, GB, CRH, CREG_GAP, GATE_DEFS, LW, PX, PY, UI_COLORS, gateSupportsParam } from "../constants";
+import { CH, CONNECTOR_BLACK, CW, ERROR_COLORS, GB, CRH, CREG_GAP, GATE_DEFS, LW, PX, PY, UI_COLORS, gateSupportsParam } from "../constants";
 import type { CircuitElement, ClassicalRegister, DropPreview, QuantumConnectorLine, StepAnalysisMap } from "../types";
 import { classicalControlWireLine, measurementWireLine } from "../utils/circuit";
 import { cregY, wireX, wireY } from "../utils/layout";
@@ -55,7 +55,7 @@ export function CircuitCanvas({
           return (
             <g key={`step-${step}`}>
               {hasError ? (
-                <text x={wireX(step)} y={10} textAnchor="middle" fontSize={10} fill={UI_COLORS.red600}>
+                <text x={wireX(step)} y={10} textAnchor="middle" fontSize={10} fill={ERROR_COLORS.primary}>
                   ⚠
                 </text>
               ) : null}
@@ -66,7 +66,7 @@ export function CircuitCanvas({
                 dominantBaseline="middle"
                 fontSize={10}
                 fontFamily="monospace"
-                fill={hasError ? UI_COLORS.red600 : UI_COLORS.slate400}
+                fill={hasError ? ERROR_COLORS.primary : UI_COLORS.slate400}
               >
                 {step}
               </text>
@@ -99,7 +99,7 @@ export function CircuitCanvas({
               y1={wireY(line.q1)}
               x2={wireX(step)}
               y2={wireY(line.q2)}
-              stroke={line.error ? "#dc2626" : CONNECTOR_BLACK}
+              stroke={line.error ? ERROR_COLORS.primary : CONNECTOR_BLACK}
               strokeWidth={2}
               strokeDasharray={line.error ? "5 3" : undefined}
             />
@@ -152,8 +152,8 @@ function DropPreviewOverlay({ dropPreview, nQ }: { dropPreview: DropPreview | nu
         width={CW - 10}
         height={CH - 10}
         rx={3}
-        fill={dropPreview.valid ? "rgba(34,197,94,.12)" : "rgba(239,68,68,.10)"}
-        stroke={dropPreview.valid ? "#16a34a" : "#dc2626"}
+        fill={dropPreview.valid ? "rgba(34,197,94,.12)" : ERROR_COLORS.previewFill}
+        stroke={dropPreview.valid ? "#16a34a" : ERROR_COLORS.primary}
         strokeWidth={1.5}
         strokeDasharray="4"
       />
@@ -167,8 +167,8 @@ function DropPreviewOverlay({ dropPreview, nQ }: { dropPreview: DropPreview | nu
       width={54}
       height={CRH - 10}
       rx={3}
-      fill={dropPreview.valid ? "rgba(124,58,237,.1)" : "rgba(239,68,68,.10)"}
-      stroke={dropPreview.valid ? "#7c3aed" : "#dc2626"}
+      fill={dropPreview.valid ? "rgba(124,58,237,.1)" : ERROR_COLORS.previewFill}
+      stroke={dropPreview.valid ? "#7c3aed" : ERROR_COLORS.primary}
       strokeWidth={1.5}
       strokeDasharray="4"
     />
@@ -280,7 +280,7 @@ function ElementNode({
   nQ: number;
 }) {
   const cx = wireX(element.step);
-  const errorColor = "#dc2626";
+  const errorColor = ERROR_COLORS.primary;
   const ops = {
     className: "gate-el",
     style: { cursor: "grab", opacity: dragging ? 0.18 : 1 },
@@ -356,7 +356,14 @@ function ElementNode({
         <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={inError ? errorColor : fill} stroke={selected ? "#B45309" : "none"} strokeWidth={2} />
         <path d={`M ${cx - 9} ${cy + 4} A 9 9 0 0 1 ${cx + 9} ${cy + 4}`} stroke="#fff" strokeWidth={1.5} fill="none" />
         <line x1={cx} y1={cy + 4} x2={cx + 8} y2={cy - 6} stroke="#fff" strokeWidth={1.5} />
-        <text x={cx} y={cy - GB / 2 - 4} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={element.creg ? "#64748b" : "#f87171"}>
+        <text
+          x={cx}
+          y={cy - GB / 2 - 4}
+          textAnchor="middle"
+          fontSize={8}
+          fontFamily="monospace"
+          fill={element.creg ? UI_COLORS.slate500 : ERROR_COLORS.label}
+        >
           {element.creg ?? "no reg"}
         </text>
       </g>
