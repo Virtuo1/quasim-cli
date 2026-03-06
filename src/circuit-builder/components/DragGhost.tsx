@@ -23,6 +23,8 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
             ? CLASSICAL_OP_DEFS.measurement.label
             : ghost.type === "reset"
               ? CLASSICAL_OP_DEFS.reset.label
+              : ghost.type === "jump"
+                ? CLASSICAL_OP_DEFS.jump.label
               : UNITARY_OP_DEFS[ghost.kind].label;
   const color =
     ghost.type === "ctrl"
@@ -35,7 +37,10 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
             ? CLASSICAL_OP_DEFS.measurement.color
             : ghost.type === "reset"
               ? CLASSICAL_OP_DEFS.reset.color
+              : ghost.type === "jump"
+                ? CLASSICAL_OP_DEFS.jump.color
               : UNITARY_OP_DEFS[ghost.kind].color;
+  const jumpGhost = ghost.type === "jump";
 
   return (
     <div
@@ -46,8 +51,9 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
         transform: "translate(-50%, -50%)",
         pointerEvents: "none",
         zIndex: 9999,
-        background: color,
-        color: "#fff",
+        background: jumpGhost ? "#fff" : color,
+        color: jumpGhost ? CONNECTOR_BLACK : "#fff",
+        border: jumpGhost ? `2px solid ${CONNECTOR_BLACK}` : "none",
         padding: "4px 11px",
         borderRadius: 3,
         fontFamily: "monospace",

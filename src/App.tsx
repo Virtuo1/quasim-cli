@@ -8,6 +8,7 @@ import { StatusBar } from "./circuit-builder/components/StatusBar";
 import { ClassicalRegisterModal } from "./circuit-builder/components/modals/ClassicalRegisterModal";
 import { ConditionModal } from "./circuit-builder/components/modals/ConditionModal";
 import { CustomGateModal } from "./circuit-builder/components/modals/CustomGateModal";
+import { JumpModal } from "./circuit-builder/components/modals/JumpModal";
 import { ParameterModal } from "./circuit-builder/components/modals/ParameterModal";
 import { COND_OPS, UI_COLORS } from "./circuit-builder/constants";
 import { useCircuitEditor } from "./circuit-builder/hooks/useCircuitEditor";
@@ -58,6 +59,7 @@ function App() {
           onEditSelectedParam={(id, values) => actions.setParameterModal({ id, values })}
           onEditSelectedCreg={(elId) => actions.setClassicalRegisterModal({ elId })}
           onEditSelectedCondition={actions.openConditionEditor}
+          onEditSelectedJump={(elId) => actions.openJumpTargetEditor(elId)}
           onCreateCustomGate={() => actions.setCustomGateModal({})}
           onDeleteSelected={actions.deleteSelected}
           onDeleteSelectedSet={actions.deleteSelectedSet}
@@ -75,6 +77,11 @@ function App() {
           dropPreview={state.dropPreview}
           selectionBox={state.selectionBox}
           stepAnalysis={state.stepAnalysis}
+          jumpTargetSelectionActive={!!state.jumpModal}
+          hoveredJumpTargetStep={state.hoveredJumpTargetStep}
+          jumpSourceStep={state.jumpModalElement?.step ?? null}
+          onJumpTargetHover={actions.setHoveredJumpTargetStep}
+          onJumpTargetSelect={actions.applyJumpTarget}
           onCanvasPointerDown={actions.startCanvasSelection}
           onElementPointerDown={actions.startElementDrag}
         />
@@ -113,6 +120,16 @@ function App() {
         operators={COND_OPS}
         onCancel={() => actions.setConditionModal(null)}
         onApply={actions.applyCondition}
+      />
+
+      <JumpModal
+        modal={state.jumpModal}
+        element={state.jumpModalElement}
+        hoveredStep={state.hoveredJumpTargetStep}
+        onCancel={() => {
+          actions.setJumpModal(null);
+          actions.setHoveredJumpTargetStep(null);
+        }}
       />
 
       <CustomGateModal

@@ -90,6 +90,27 @@ export function ElementNode({
     );
   }
 
+  if (element.type === "jump") {
+    const topY = wireY(0) - GB / 2;
+    const bottomY = wireY(nQ - 1) + GB / 2;
+    const boxHeight = bottomY - topY;
+    const fill = inError ? ERROR_COLORS.previewFill : UI_COLORS.white;
+    const stroke = inError ? errorColor : selected ? UI_COLORS.amber700 : CONNECTOR_BLACK;
+    const textColor = inError ? errorColor : CONNECTOR_BLACK;
+    return (
+      <g {...ops}>
+        {selected ? <rect x={cx - 28} y={topY - 4} width={56} height={boxHeight + 8} rx={6} fill={UI_COLORS.amber500} opacity={0.15} /> : null}
+        <rect x={cx - 24} y={topY} width={48} height={boxHeight} rx={4} fill={fill} stroke={stroke} strokeWidth={2} />
+        <text x={cx} y={topY + boxHeight / 2 - 8} textAnchor="middle" dominantBaseline="middle" fill={textColor} fontSize={13} fontFamily="monospace" fontWeight={700}>
+          {CLASSICAL_OP_DEFS.jump.label}
+        </text>
+        <text x={cx} y={topY + boxHeight / 2 + 10} textAnchor="middle" dominantBaseline="middle" fill={textColor} fontSize={9} fontFamily="monospace" fontWeight={700}>
+          {element.targetStep == null ? "?" : `-> ${element.targetStep}`}
+        </text>
+      </g>
+    );
+  }
+
   const cy = wireY(element.qubit);
   if (element.type === "measurement") {
     const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.measurement.color;

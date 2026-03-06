@@ -4,6 +4,7 @@ import type {
   ClassicalRegister,
   ClassicalControlElement,
   CustomGateDefinition,
+  JumpElement,
   MeasurementElement,
   QuantumConnectorLine,
   ResetElement,
@@ -23,7 +24,24 @@ export function compact(elements: CircuitElement[]) {
     stepMap[step] = index;
   });
 
-  const remapped = elements.map((element) => ({ ...element, step: stepMap[element.step] })) as CircuitElement[];
+  const remapped = elements.map((element) => {
+    const nextStep = stepMap[element.step];
+    if (element.type !== "jump" || element.targetStep == null) {
+      return { ...element, step: nextStep };
+    }
+
+    // Jump targets refer to compacted column indices too, so column removal/insertion
+    // needs to keep the target aligned with the current visible circuit.
+    const targetStep = element.targetStep;
+    const exactTarget = stepMap[targetStep];
+    const compactedTarget =
+      exactTarget ?? occupiedSteps.filter((step) => step < targetStep).length;
+    return {
+      ...element,
+      step: nextStep,
+      targetStep: Math.max(0, Math.min(compactedTarget, Math.max(occupiedSteps.length - 1, 0))),
+    };
+  }) as CircuitElement[];
   return { elements: remapped, nS: Math.max(MIN_STEPS, occupiedSteps.length + 1) };
 }
 
@@ -43,6 +61,10 @@ export function cellTaken(
       return customGateOccupiedQubits(element, definition).includes(qubit);
     }
 
+    if (element.type === "jump") {
+      return true;
+    }
+
     return "qubit" in element && element.qubit === qubit;
   });
 }
@@ -53,15 +75,21 @@ export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
   const unitaryGates = stepElements.filter((element): element is Extract<CircuitElement, { type: "unitary" }> => element.type === "unitary");
   const measurements = stepElements.filter((element): element is MeasurementElement => element.type === "measurement");
   const resets = stepElements.filter((element): element is ResetElement => element.type === "reset");
+  const jumps = stepElements.filter((element): element is JumpElement => element.type === "jump");
   const customs = stepElements.filter((element): element is Extract<CircuitElement, { type: "custom" }> => element.type === "custom");
   const cctrl = stepElements.filter((element): element is Extract<CircuitElement, { type: "cctrl" }> => element.type === "cctrl");
 
   const classicalOps = measurements.length + resets.length;
+  const hasQuantumTargets = unitaryGates.length + swaps.length + measurements.length + resets.length + jumps.length + customs.length > 0;
   const swapError = swaps.length !== 0 && swaps.length !== 2;
-  const ctrlOrphan = ctrls.length > 0 && unitaryGates.length + swaps.length + measurements.length + resets.length + customs.length === 0;
+  const ctrlOrphan = ctrls.length > 0 && !hasQuantumTargets;
   const ctrlOnClassicalOp = ctrls.length > 0 && classicalOps > 0;
   const ctrlOnCustom = ctrls.length > 0 && customs.length > 0;
-  const cctrlOrphan = cctrl.length > 0 && unitaryGates.length + swaps.length + measurements.length + resets.length + customs.length === 0;
+  const jumpMixedColumn =
+    jumps.length > 0 &&
+    (jumps.length > 1 || stepElements.some((element) => element.type !== "jump" && element.type !== "cctrl"));
+  const jumpWithoutTarget = jumps.some((jump) => jump.targetStep == null);
+  const cctrlOrphan = cctrl.length > 0 && !hasQuantumTargets;
   const cctrlMultiple = cctrl.length > 1;
   const measurementWithoutRegister = measurements.some((measurement) => !measurement.registerName);
 
@@ -71,12 +99,15 @@ export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
     unitaryGates,
     measurements,
     resets,
+    jumps,
     customs,
     cctrl,
     swapError,
     ctrlOrphan,
     ctrlOnClassicalOp,
     ctrlOnCustom,
+    jumpMixedColumn,
+    jumpWithoutTarget,
     cctrlOrphan,
     cctrlMultiple,
     measurementWithoutRegister,
@@ -85,6 +116,8 @@ export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
       ctrlOrphan ||
       ctrlOnClassicalOp ||
       ctrlOnCustom ||
+      jumpMixedColumn ||
+      jumpWithoutTarget ||
       cctrlOrphan ||
       cctrlMultiple ||
       measurementWithoutRegister,
@@ -183,12 +216,13 @@ export function classicalControlWireLine(
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
   const stepTargets = elements.filter(
-    (element): element is Extract<CircuitElement, { type: "unitary" | "measurement" | "reset" | "swap" | "custom" }> =>
+    (element): element is Extract<CircuitElement, { type: "unitary" | "measurement" | "reset" | "swap" | "jump" | "custom" }> =>
       element.step === control.step &&
       (element.type === "unitary" ||
         element.type === "measurement" ||
         element.type === "reset" ||
         element.type === "swap" ||
+        element.type === "jump" ||
         element.type === "custom"),
   );
   if (stepTargets.length === 0) {
@@ -200,6 +234,9 @@ export function classicalControlWireLine(
       if (element.type === "custom") {
         const definition = customGateDefinitions.find((candidate) => candidate.classifier === element.classifier);
         return customGateOccupiedQubits(element, definition);
+      }
+      if (element.type === "jump") {
+        return [0];
       }
       return [element.qubit];
     }),

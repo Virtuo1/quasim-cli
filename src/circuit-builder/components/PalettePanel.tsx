@@ -1,4 +1,4 @@
-import { CONNECTOR_BLACK, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS, UNITARY_GATE_KINDS, unitaryGateSupportsParam } from "../constants";
+import { CONNECTOR_BLACK, CLASSICAL_OP_DEFS, CLASSICAL_OP_KINDS, UI_COLORS, UNITARY_OP_DEFS, UNITARY_GATE_KINDS, unitaryGateSupportsParam } from "../constants";
 import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
 import { describeCondition } from "../utils/conditions";
 import { fmt } from "../utils/layout";
@@ -17,6 +17,7 @@ interface PalettePanelProps {
   onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
+  onEditSelectedJump: (id: number) => void;
   onCreateCustomGate: () => void;
   onDeleteSelected: (id: number) => void;
   onDeleteSelectedSet: () => void;
@@ -36,6 +37,7 @@ export function PalettePanel({
   onEditSelectedParam,
   onEditSelectedCreg,
   onEditSelectedCondition,
+  onEditSelectedJump,
   onCreateCustomGate,
   onDeleteSelected,
   onDeleteSelectedSet,
@@ -104,9 +106,9 @@ export function PalettePanel({
       </div>
 
       <div>
-        <SectionTitle>Init / Meas</SectionTitle>
+        <SectionTitle>Classical Ops</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
-          {(["reset", "measurement"] as const).map((type) => {
+          {CLASSICAL_OP_KINDS.map((type) => {
             const definition = CLASSICAL_OP_DEFS[type];
             return (
               <button
@@ -325,6 +327,7 @@ export function PalettePanel({
           onEditSelectedParam={onEditSelectedParam}
           onEditSelectedCreg={onEditSelectedCreg}
           onEditSelectedCondition={onEditSelectedCondition}
+          onEditSelectedJump={onEditSelectedJump}
           onDeleteSelected={onDeleteSelected}
         />
       ) : null}
@@ -337,12 +340,14 @@ function SelectedElementCard({
   onEditSelectedParam,
   onEditSelectedCreg,
   onEditSelectedCondition,
+  onEditSelectedJump,
   onDeleteSelected,
 }: {
   element: CircuitElement;
   onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
+  onEditSelectedJump: (id: number) => void;
   onDeleteSelected: (id: number) => void;
 }) {
   return (
@@ -377,6 +382,11 @@ function SelectedElementCard({
             Edit condition
           </button>
         ) : null}
+        {element.type === "jump" ? (
+          <button onClick={() => onEditSelectedJump(element.id)} style={actionChipStyle(UI_COLORS.slate900, UI_COLORS.panelBg, UI_COLORS.slate900)}>
+            Edit target
+          </button>
+        ) : null}
         <button onClick={() => onDeleteSelected(element.id)} style={actionChipStyle(UI_COLORS.red600, UI_COLORS.rose50, UI_COLORS.red600)}>
           Delete
         </button>
@@ -401,6 +411,9 @@ function selectedTitle(element: CircuitElement) {
   if (element.type === "reset") {
     return CLASSICAL_OP_DEFS.reset.description;
   }
+  if (element.type === "jump") {
+    return CLASSICAL_OP_DEFS.jump.description;
+  }
   if (element.type === "custom") {
     return `Custom gate: ${element.classifier}`;
   }
@@ -419,6 +432,16 @@ function selectedDetails(element: CircuitElement) {
         condition: <b>{describeCondition(element.condition)}</b>
         <br />
         col {element.step}
+      </>
+    );
+  }
+
+  if (element.type === "jump") {
+    return (
+      <>
+        col {element.step}
+        <br />
+        target: <b>{element.targetStep == null ? <span style={{ color: UI_COLORS.red600 }}>unassigned</span> : `col ${element.targetStep}`}</b>
       </>
     );
   }

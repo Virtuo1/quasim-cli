@@ -27,7 +27,7 @@ export function exportCircuitToFile({
   for (let step = 0; step < steps; step += 1) {
     const stepElements = elements.filter((element) => element.step === step);
     const analysis = analyzeStep(stepElements);
-    const { swaps, ctrls, unitaryGates, measurements, resets, customs, cctrl, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } = analysis;
+    const { swaps, ctrls, unitaryGates, measurements, resets, jumps, customs, cctrl, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } = analysis;
     const controls =
       ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom
         ? []
@@ -74,6 +74,22 @@ export function exportCircuitToFile({
       if (controls.length > 0) {
         operation.controls = controls;
       }
+      if (condition) {
+        operation.condition = condition;
+      }
+      gates.push(operation);
+    }
+
+    for (const jump of jumps) {
+      if (jump.targetStep == null) {
+        continue;
+      }
+
+      const operation: SerializedGate = {
+        step,
+        type: "JUMP",
+        targetStep: jump.targetStep,
+      };
       if (condition) {
         operation.condition = condition;
       }
@@ -162,7 +178,19 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         step: gate.step,
         qubit: gate.qubit,
       });
-    } else if (gate.type !== "M" && gate.type !== "RESET" && gate.type !== "CUSTOM" && typeof gate.qubit === "number") {
+    } else if (gate.type === "JUMP") {
+      elements.push({
+        id: uid(),
+        type: "jump",
+        step: gate.step,
+        targetStep: typeof gate.targetStep === "number" ? gate.targetStep : null,
+      });
+    } else if (
+      gate.type !== "M" &&
+      gate.type !== "RESET" &&
+      gate.type !== "CUSTOM" &&
+      typeof gate.qubit === "number"
+    ) {
       elements.push({
         id: uid(),
         type: "unitary",

@@ -51,6 +51,11 @@ export interface ResetElement extends BaseElement {
   qubit: number;
 }
 
+export interface JumpElement extends BaseElement {
+  type: "jump";
+  targetStep: number | null;
+}
+
 export interface CustomGateElement extends BaseElement {
   type: "custom";
   classifier: string;
@@ -69,6 +74,7 @@ export type QuantumRenderableElement =
   | UnitaryGateElement
   | MeasurementElement
   | ResetElement
+  | JumpElement
   | CustomGateElement;
 
 export type GroupableElement = ControlElement | SwapElement | UnitaryGateElement;
@@ -90,12 +96,15 @@ export interface StepAnalysis {
   unitaryGates: UnitaryGateElement[];
   measurements: MeasurementElement[];
   resets: ResetElement[];
+  jumps: JumpElement[];
   customs: CustomGateElement[];
   cctrl: ClassicalControlElement[];
   swapError: boolean;
   ctrlOrphan: boolean;
   ctrlOnClassicalOp: boolean;
   ctrlOnCustom: boolean;
+  jumpMixedColumn: boolean;
+  jumpWithoutTarget: boolean;
   cctrlOrphan: boolean;
   cctrlMultiple: boolean;
   measurementWithoutRegister: boolean;
@@ -110,6 +119,7 @@ export type PaletteDragSpec =
   | { type: "unitary"; kind: UnitaryGateKind }
   | { type: "measurement" }
   | { type: "reset" }
+  | { type: "jump" }
   | { type: "custom"; classifier: string };
 
 export type DragGhostState = PaletteDragSpec & {
@@ -118,7 +128,7 @@ export type DragGhostState = PaletteDragSpec & {
 };
 
 export type DropPreview =
-  | { zone: "qubit"; step: number; qubit: number; valid: boolean; insertAt?: number; qubitSpan?: number }
+  | { zone: "qubit"; step: number; qubit: number; valid: boolean; insertAt?: number; qubitSpan?: number; fullColumn?: boolean }
   | { zone: "creg"; step: number; cregIdx: number; cregName: string; valid: boolean; insertAt?: number };
 
 export type CanvasHit =
@@ -138,6 +148,10 @@ export interface ConditionModalState {
   elId: number;
 }
 
+export interface JumpModalState {
+  elId: number;
+}
+
 export interface CustomGateModalState {
   suggestedName?: string;
 }
@@ -151,13 +165,14 @@ export interface SelectionBox {
 
 export interface SerializedGate {
   step: number;
-  type: UnitaryGateKind | "SWAP" | "M" | "RESET" | "CUSTOM";
+  type: UnitaryGateKind | "SWAP" | "M" | "RESET" | "JUMP" | "CUSTOM";
   qubit?: number;
   qubits?: number[];
   controls?: number[];
   params?: number[];
   creg?: string | null;
   classifier?: string;
+  targetStep?: number | null;
   condition?: {
     reg: string;
     op: ConditionOperator;

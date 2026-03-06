@@ -19,6 +19,10 @@ export function elementOccupiedQubits(
     return [];
   }
 
+  if (element.type === "jump") {
+    return [];
+  }
+
   if (element.type === "custom") {
     return customGateOccupiedQubits(
       element,

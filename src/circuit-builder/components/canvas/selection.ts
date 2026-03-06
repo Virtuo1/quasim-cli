@@ -56,6 +56,15 @@ function getElementBounds(
     return { left: cx - 14, top: cy - 18, right: cx + 14, bottom: cy + 18 };
   }
 
+  if (element.type === "jump") {
+    return {
+      left: cx - 24,
+      top: wireY(0) - GB / 2,
+      right: cx + 24,
+      bottom: wireY(nQ - 1) + GB / 2,
+    };
+  }
+
   const cy = wireY(element.qubit);
 
   if (element.type === "ctrl") {

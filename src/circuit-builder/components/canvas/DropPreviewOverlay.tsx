@@ -8,18 +8,21 @@ export function DropPreviewOverlay({ dropPreview, nQ }: { dropPreview: DropPrevi
   }
 
   if (dropPreview.zone === "qubit") {
-    const previewHeight = CH * (dropPreview.qubitSpan ?? 1) - 10;
+    const previewHeight = dropPreview.fullColumn ? nQ * CH - 10 : CH * (dropPreview.qubitSpan ?? 1) - 10;
+    const previewY = dropPreview.fullColumn ? PY + 5 : PY + dropPreview.qubit * CH + 5;
+    const fill = dropPreview.valid ? "rgba(34,197,94,.12)" : ERROR_COLORS.previewFill;
+    const stroke = dropPreview.valid ? "#16a34a" : ERROR_COLORS.primary;
 
     if (dropPreview.insertAt != null) {
       return (
         <rect
           x={PX + LW + dropPreview.insertAt * CW - 5}
-          y={PY + dropPreview.qubit * CH + 5}
+          y={previewY}
           width={10}
           height={previewHeight}
           rx={3}
           fill={dropPreview.valid ? "rgba(34,197,94,.18)" : ERROR_COLORS.previewFill}
-          stroke={dropPreview.valid ? "#16a34a" : ERROR_COLORS.primary}
+          stroke={stroke}
           strokeWidth={1.5}
           strokeDasharray="4"
         />
@@ -29,12 +32,12 @@ export function DropPreviewOverlay({ dropPreview, nQ }: { dropPreview: DropPrevi
     return (
       <rect
         x={PX + LW + dropPreview.step * CW + 5}
-        y={PY + dropPreview.qubit * CH + 5}
+        y={previewY}
         width={CW - 10}
         height={previewHeight}
         rx={3}
-        fill={dropPreview.valid ? "rgba(34,197,94,.12)" : ERROR_COLORS.previewFill}
-        stroke={dropPreview.valid ? "#16a34a" : ERROR_COLORS.primary}
+        fill={fill}
+        stroke={stroke}
         strokeWidth={1.5}
         strokeDasharray="4"
       />

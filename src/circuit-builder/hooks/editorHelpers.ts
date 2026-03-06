@@ -43,6 +43,15 @@ export function createElementFromPalette(
     };
   }
 
+  if (spec.type === "jump") {
+    return {
+      id: uid(),
+      type: "jump",
+      step,
+      targetStep: null,
+    };
+  }
+
   if (spec.type === "custom") {
     return {
       id: uid(),
@@ -88,6 +97,9 @@ export function createDragGhostFromElement(
   }
   if (element.type === "reset") {
     return { x: clientX, y: clientY, type: "reset" };
+  }
+  if (element.type === "jump") {
+    return { x: clientX, y: clientY, type: "jump" };
   }
   if (element.type === "swap") {
     return { x: clientX, y: clientY, type: "swap" };

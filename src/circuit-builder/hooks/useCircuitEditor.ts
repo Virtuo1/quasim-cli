@@ -11,6 +11,7 @@ import type {
   CustomGateModalState,
   DragGhostState,
   DropPreview,
+  JumpModalState,
   PaletteDragSpec,
   ParameterModalState,
   SelectionBox,
@@ -48,6 +49,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const [parameterModal, setParameterModal] = useState<ParameterModalState | null>(null);
   const [classicalRegisterModal, setClassicalRegisterModal] = useState<ClassicalRegisterModalState | null>(null);
   const [conditionModal, setConditionModal] = useState<ConditionModalState | null>(null);
+  const [jumpModal, setJumpModal] = useState<JumpModalState | null>(null);
+  const [hoveredJumpTargetStep, setHoveredJumpTargetStep] = useState<number | null>(null);
   const [customGateModal, setCustomGateModal] = useState<CustomGateModalState | null>(null);
   const [newRegName, setNewRegName] = useState("");
   const [dragGhost, setDragGhost] = useState<DragGhostState | null>(null);
@@ -96,7 +99,13 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
   const insertAtStep = useCallback(
     (current: CircuitElement[], insertStep: number) =>
-      current.map((el) => (el.step >= insertStep ? { ...el, step: el.step + 1 } : el)),
+      current.map((el) => ({
+        ...el,
+        step: el.step >= insertStep ? el.step + 1 : el.step,
+        ...(el.type === "jump" && el.targetStep != null && el.targetStep >= insertStep
+          ? { targetStep: el.targetStep + 1 }
+          : {}),
+      })),
     [],
   );
 
@@ -115,6 +124,11 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     setConditionModal({ elId });
   }, []);
 
+  const openJumpTargetEditor = useCallback((elId: number, suggestedStep?: number | null) => {
+    setJumpModal({ elId });
+    setHoveredJumpTargetStep(suggestedStep ?? null);
+  }, []);
+
   const clearSelection = useCallback(() => {
     setSelectedIds([]);
   }, []);
@@ -127,6 +141,10 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         const definition = findCustomGateDefinition(spec.classifier, customGateDefinitionsRef.current);
         const span = customGateSpan(definition);
         return Array.from({ length: span }, (_, offset) => baseQubit + offset);
+      }
+
+      if (spec.type === "jump") {
+        return Array.from({ length: nQRef.current }, (_, qubit) => qubit);
       }
 
       if ("qubit" in spec) {
@@ -162,6 +180,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
             qubit: hit.qubit,
             insertAt: hit.insertAt,
             qubitSpan: occupiedQubits.length,
+            fullColumn: spec.type === "jump",
             valid: withinBounds,
           };
         }
@@ -169,13 +188,18 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         const overlaps = occupiedQubits.some((qubit) =>
           cellTaken(others, hit.step, qubit, customGateDefinitionsRef.current),
         );
+        const jumpOccupiesWholeColumn = spec.type === "jump";
+        const stepAlreadyUsed =
+          jumpOccupiesWholeColumn &&
+          others.some((element) => element.step === hit.step && element.type !== "cctrl");
 
         return {
           zone: "qubit",
           step: hit.step,
           qubit: hit.qubit,
           qubitSpan: occupiedQubits.length,
-          valid: withinBounds && !overlaps,
+          fullColumn: spec.type === "jump",
+          valid: withinBounds && !overlaps && !stepAlreadyUsed,
         };
       }
 
@@ -236,11 +260,13 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           );
         }
         setClassicalRegisterModal({ elId: newElement.id });
+      } else if (newElement.type === "jump") {
+        openJumpTargetEditor(newElement.id, newStep);
       } else if (newElement.type === "unitary" && newElement.params) {
         setParameterModal({ id: newElement.id, values: newElement.params });
       }
     },
-    [insertAtStep, setElements],
+    [insertAtStep, openJumpTargetEditor, setElements],
   );
 
   const applyCregDrop = useCallback(
@@ -346,7 +372,19 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           // Moving into a gap behaves like a remove-then-insert operation.
           const others = current.filter((el) => el.id !== elementId);
           const shifted = insertAtStep(others, insertStep);
-          return [...shifted, { ...movingEl, step: insertStep, qubit: preview.qubit }];
+          return [
+            ...shifted,
+            movingEl.type === "jump"
+              ? {
+                  ...movingEl,
+                  step: insertStep,
+                  targetStep:
+                    movingEl.targetStep != null && movingEl.targetStep >= insertStep
+                      ? movingEl.targetStep + 1
+                      : movingEl.targetStep,
+                }
+              : { ...movingEl, step: insertStep, qubit: preview.qubit },
+          ];
         });
         return;
       }
@@ -354,7 +392,9 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setElements((current) =>
         current.map((el) =>
           el.id === elementId && el.type !== "cctrl"
-            ? { ...el, step: preview.step, qubit: preview.qubit }
+            ? el.type === "jump"
+              ? { ...el, step: preview.step }
+              : { ...el, step: preview.step, qubit: preview.qubit }
             : el,
         ),
       );
@@ -425,7 +465,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         selectedIds.length > 0 &&
         !classicalRegisterModal &&
         !parameterModal &&
-        !conditionModal
+        !conditionModal &&
+        !jumpModal
       ) {
         event.preventDefault();
         setElements((current) => current.filter((el) => !selectedIds.includes(el.id)));
@@ -436,7 +477,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         clearSelection();
       }
     },
-    [classicalRegisterModal, clearSelection, conditionModal, parameterModal, selectedIds, setElements],
+    [classicalRegisterModal, clearSelection, conditionModal, jumpModal, parameterModal, selectedIds, setElements],
   );
 
   const startCanvasSelection = useCallback(
@@ -585,6 +626,12 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           setCustomGateDefinitions(next.customGateDefinitions);
           setElements(next.elements);
           setSelectedIds([]);
+          setParameterModal(null);
+          setClassicalRegisterModal(null);
+          setConditionModal(null);
+          setJumpModal(null);
+          setHoveredJumpTargetStep(null);
+          setCustomGateModal(null);
         } catch {
           window.alert("Invalid circuit JSON.");
         }
@@ -599,6 +646,12 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     setCregs([]);
     setCustomGateDefinitions([]);
     setSelectedIds([]);
+    setParameterModal(null);
+    setClassicalRegisterModal(null);
+    setConditionModal(null);
+    setJumpModal(null);
+    setHoveredJumpTargetStep(null);
+    setCustomGateModal(null);
   }, [setElements]);
 
   const stepAnalysis = useMemo<StepAnalysisMap>(() => {
@@ -644,6 +697,14 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         ? elements.find((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.id === conditionModal.elId && el.type === "cctrl") ?? null
         : null,
     [conditionModal, elements],
+  );
+
+  const jumpModalElement = useMemo(
+    () =>
+      jumpModal
+        ? elements.find((el): el is Extract<CircuitElement, { type: "jump" }> => el.id === jumpModal.elId && el.type === "jump") ?? null
+        : null,
+    [elements, jumpModal],
   );
 
   const assignMeasurementRegister = useCallback(
@@ -713,6 +774,31 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     setParameterModal(null);
   }, [parameterModal, setElements]);
 
+  const applyJumpTarget = useCallback(
+    (targetStep: number) => {
+      if (!jumpModal) {
+        return;
+      }
+
+      const jumpElement = elementsRef.current.find(
+        (element): element is Extract<CircuitElement, { type: "jump" }> =>
+          element.id === jumpModal.elId && element.type === "jump",
+      );
+      if (!jumpElement || jumpElement.step === targetStep) {
+        return;
+      }
+
+      setElements((current) =>
+        current.map((el) =>
+          el.id === jumpModal.elId && el.type === "jump" ? { ...el, targetStep } : el,
+        ),
+      );
+      setJumpModal(null);
+      setHoveredJumpTargetStep(null);
+    },
+    [jumpModal, setElements],
+  );
+
   const createCustomGate = useCallback(
     (name: string) => {
       const trimmed = name.trim();
@@ -767,6 +853,9 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       classicalRegisterModalElement,
       conditionModal,
       conditionModalElement,
+      jumpModal,
+      jumpModalElement,
+      hoveredJumpTargetStep,
       customGateModal,
       customGateCreation,
       newRegName,
@@ -783,6 +872,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setParameterModal,
       setClassicalRegisterModal,
       setConditionModal,
+      setJumpModal,
+      setHoveredJumpTargetStep,
       setCustomGateModal,
       setNewRegName,
       handleKeyDown,
@@ -790,6 +881,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       startPaletteDrag,
       startElementDrag,
       openConditionEditor,
+      openJumpTargetEditor,
       addRegister,
       deleteRegister,
       addQubit,
@@ -801,6 +893,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       createRegisterAndAssign,
       applyCondition,
       applyParameter,
+      applyJumpTarget,
       createCustomGate,
       deleteSelected: (id: number) => {
         setElements((current) => current.filter((el) => el.id !== id));

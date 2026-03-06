@@ -68,18 +68,19 @@ export const UNITARY_OP_DEFS = {
   Y: { label: "Y", color: "#D97706", description: "Pauli-Y" },
   Z: { label: "Z", color: "#7C3AED", description: "Pauli-Z" },
   S: { label: "S", color: "#059669", description: "S (sqrt(Z))" },
-  RX: { label: "Rx", color: "#9F1239", description: "Rx(ϴ)", expectedParameters: ["ϴ"] },
-  RY: { label: "Ry", color: "#C2410C", description: "Ry(ϴ)", expectedParameters: ["ϴ"] },
-  RZ: { label: "Rz", color: "#6D28D9", description: "Rz(ϴ)", expectedParameters: ["ϴ"] },
+  RX: { label: "Rx", color: "#9F1239", description: "Rx(θ)", expectedParameters: ["θ"] },
+  RY: { label: "Ry", color: "#C2410C", description: "Ry(θ)", expectedParameters: ["θ"] },
+  RZ: { label: "Rz", color: "#6D28D9", description: "Rz(θ)", expectedParameters: ["θ"] },
   P: { label: "P", color: "#0D9488", description: "Phase(λ)", expectedParameters: ["λ"] },
-  U: { label: "U", color: "#475569", description: "U(ϴ,φ,λ)", expectedParameters: ["ϴ", "φ", "λ"] },
+  U: { label: "U", color: "#475569", description: "U(θ,ϕ,λ)", expectedParameters: ["θ", "ϕ", "λ"] },
 } as const satisfies Record<string, UnitaryOpDef>;
 
 export type UnitaryGateKind = keyof typeof UNITARY_OP_DEFS;
 
 export const CLASSICAL_OP_DEFS = {
-  measurement: { label: "M", color: "#1e293b", description: "Measure" },
+  measurement: { label: "Measure", color: "#1e293b", description: "Measure" },
   reset: { label: "|0⟩", color: "#374151", description: "Reset to |0⟩" },
+  jump: { label: "Jump", color: "#000000", description: "Jump to column" },
 } as const satisfies Record<string, ClassicalOpDef>;
 
 export const unitaryGateExpectedParameters = (kind: UnitaryGateKind) => {
@@ -94,3 +95,4 @@ export const unitaryGateSupportsParam = (kind: UnitaryGateKind) => {
 
 export const CONNECTOR_BLACK = "#000000";
 export const UNITARY_GATE_KINDS = Object.keys(UNITARY_OP_DEFS) as UnitaryGateKind[];
+export const CLASSICAL_OP_KINDS = Object.keys(CLASSICAL_OP_DEFS) as (keyof typeof CLASSICAL_OP_DEFS)[];
