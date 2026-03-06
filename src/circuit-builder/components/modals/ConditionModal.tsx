@@ -22,8 +22,8 @@ export function ConditionModal({ modal, element, operators, onCancel, onApply }:
       setVal(0);
       return;
     }
-    setOp(element.op);
-    setVal(element.val);
+    setOp(element.condition.operator);
+    setVal(element.condition.value);
   }, [element, modal]);
 
   if (!modal || !element) {
@@ -43,14 +43,14 @@ export function ConditionModal({ modal, element, operators, onCancel, onApply }:
             fontFamily: "monospace",
           }}
         >
-          {element.cregName}
+          {element.condition.registerName}
         </code>{" "}
         · step {element.step}
       </div>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
         Condition:{" "}
         <code style={{ fontFamily: "monospace", color: "#7c3aed" }}>
-          {element.cregName} {op} {val}
+          {element.condition.registerName} {op} {val}
         </code>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>

@@ -1,8 +1,14 @@
-export interface GateDefinition {
-  l: string;
-  c: string;
-  desc: string;
-  p?: boolean;
+export interface UnitaryGateDefinition {
+  label: string;
+  color: string;
+  description: string;
+  supportsParameter?: boolean;
+}
+
+export interface SpecialQubitInstructionDefinition {
+  label: string;
+  color: string;
+  description: string;
 }
 
 export const UI_COLORS = {
@@ -56,36 +62,58 @@ export const MIN_STEPS = 5;
 
 export const COND_OPS = ["==", "!=", "<", "<=", ">", ">="] as const;
 
-export const GATE_DEFS = {
-  H: { l: "H", c: "#2563EB", desc: "Hadamard" },
-  X: { l: "X", c: "#DC2626", desc: "Pauli-X" },
-  Y: { l: "Y", c: "#D97706", desc: "Pauli-Y" },
-  Z: { l: "Z", c: "#7C3AED", desc: "Pauli-Z" },
-  S: { l: "S", c: "#059669", desc: "S (√Z)" },
-  T: { l: "T", c: "#0891B2", desc: "T (π/8)" },
-  SDG: { l: "S†", c: "#047857", desc: "S-dagger" },
-  TDG: { l: "T†", c: "#0369A1", desc: "T-dagger" },
-  SX: { l: "√X", c: "#9D174D", desc: "√X gate" },
-  RX: { l: "Rx", c: "#9F1239", desc: "Rx(θ)", p: true },
-  RY: { l: "Ry", c: "#C2410C", desc: "Ry(θ)", p: true },
-  RZ: { l: "Rz", c: "#6D28D9", desc: "Rz(θ)", p: true },
-  P: { l: "P", c: "#0D9488", desc: "Phase(λ)", p: true },
-  U: { l: "U", c: "#475569", desc: "Unitary (U)" },
-  RESET: { l: "|0⟩", c: "#374151", desc: "Reset to |0⟩" },
-  M: { l: "M", c: "#1e293b", desc: "Measure" },
-} as const satisfies Record<string, GateDefinition>;
+export const UNITARY_GATE_DEFS = {
+  H: { label: "H", color: "#2563EB", description: "Hadamard" },
+  X: { label: "X", color: "#DC2626", description: "Pauli-X" },
+  Y: { label: "Y", color: "#D97706", description: "Pauli-Y" },
+  Z: { label: "Z", color: "#7C3AED", description: "Pauli-Z" },
+  S: { label: "S", color: "#059669", description: "S (sqrt(Z))" },
+  T: { label: "T", color: "#0891B2", description: "T (pi/8)" },
+  SDG: { label: "S†", color: "#047857", description: "S-dagger" },
+  TDG: { label: "T†", color: "#0369A1", description: "T-dagger" },
+  SX: { label: "sqrt(X)", color: "#9D174D", description: "sqrt(X) gate" },
+  RX: { label: "Rx", color: "#9F1239", description: "Rx(theta)", supportsParameter: true },
+  RY: { label: "Ry", color: "#C2410C", description: "Ry(theta)", supportsParameter: true },
+  RZ: { label: "Rz", color: "#6D28D9", description: "Rz(theta)", supportsParameter: true },
+  P: { label: "P", color: "#0D9488", description: "Phase(lambda)", supportsParameter: true },
+  U: { label: "U", color: "#475569", description: "Unitary (U)" },
+} as const satisfies Record<string, UnitaryGateDefinition>;
 
-export type GateType = keyof typeof GATE_DEFS;
+export type UnitaryGateKind = keyof typeof UNITARY_GATE_DEFS;
 
-export const gateSupportsParam = (gateType: GateType) => {
-  const def = GATE_DEFS[gateType];
-  return "p" in def && Boolean(def.p);
+export const SPECIAL_QUBIT_INSTRUCTION_DEFS = {
+  measurement: { label: "M", color: "#1e293b", description: "Measure" },
+  reset: { label: "|0⟩", color: "#374151", description: "Reset to |0⟩" },
+} as const satisfies Record<string, SpecialQubitInstructionDefinition>;
+
+export const unitaryGateSupportsParam = (kind: UnitaryGateKind) => {
+  const definition = UNITARY_GATE_DEFS[kind];
+  return "supportsParameter" in definition && Boolean(definition.supportsParameter);
 };
 
 export const CONNECTOR_BLACK = "#000000";
 
-export const PALETTE_GROUPS = [
-  { group: "Single-Qubit", keys: ["H", "X", "Y", "Z", "S", "T", "SDG", "TDG", "SX"] },
-  { group: "Rotation", keys: ["RX", "RY", "RZ", "P", "U"] },
-  { group: "Init / Meas", keys: ["RESET", "M"] },
+export const PALETTE_SECTIONS = [
+  { group: "Single-Qubit", items: [
+    { type: "unitary", kind: "H" },
+    { type: "unitary", kind: "X" },
+    { type: "unitary", kind: "Y" },
+    { type: "unitary", kind: "Z" },
+    { type: "unitary", kind: "S" },
+    { type: "unitary", kind: "T" },
+    { type: "unitary", kind: "SDG" },
+    { type: "unitary", kind: "TDG" },
+    { type: "unitary", kind: "SX" },
+  ] },
+  { group: "Rotation", items: [
+    { type: "unitary", kind: "RX" },
+    { type: "unitary", kind: "RY" },
+    { type: "unitary", kind: "RZ" },
+    { type: "unitary", kind: "P" },
+    { type: "unitary", kind: "U" },
+  ] },
+  { group: "Init / Meas", items: [
+    { type: "reset" },
+    { type: "measurement" },
+  ] },
 ] as const;

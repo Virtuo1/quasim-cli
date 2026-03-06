@@ -1,4 +1,4 @@
-import { ERROR_COLORS, GATE_DEFS, UI_COLORS } from "../constants";
+import { ERROR_COLORS, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS } from "../constants";
 import type { CircuitElement, DropPreview } from "../types";
 import { fmt } from "../utils/layout";
 
@@ -62,7 +62,7 @@ export function StatusBar({ nQ, nS, elementCount, selectedElement, selectedCount
 
 function selectedMessage(element: CircuitElement) {
   if (element.type === "cctrl") {
-    return `Classical condition · ${element.cregName} ${element.op} ${element.val} · col ${element.step}`;
+    return `Classical condition · ${element.condition.registerName} ${element.condition.operator} ${element.condition.value} · col ${element.step}`;
   }
 
   const label =
@@ -72,11 +72,15 @@ function selectedMessage(element: CircuitElement) {
         ? "SWAP"
         : element.type === "custom"
           ? `Custom gate ${element.classifier}`
-          : GATE_DEFS[element.gateType].desc;
-  const angle = element.type === "gate" && element.param != null ? ` · θ=${fmt(element.param)}` : "";
+          : element.type === "measurement"
+            ? SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.description
+            : element.type === "reset"
+              ? SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.description
+              : UNITARY_GATE_DEFS[element.kind].description;
+  const angle = element.type === "unitary" && element.param != null ? ` · θ=${fmt(element.param)}` : "";
   const measurement =
-    element.type === "gate" && element.gateType === "M"
-      ? ` · ${element.creg ? `→ ${element.creg}` : "⚠ no reg"}`
+    element.type === "measurement"
+      ? ` · ${element.registerName ? `→ ${element.registerName}` : "⚠ no reg"}`
       : "";
   return `${label} · qubit ${element.qubit} · col ${element.step}${angle}${measurement}`;
 }

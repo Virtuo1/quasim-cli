@@ -1,4 +1,4 @@
-import { CONNECTOR_BLACK, GATE_DEFS, PALETTE_GROUPS, UI_COLORS, gateSupportsParam } from "../constants";
+import { CONNECTOR_BLACK, PALETTE_SECTIONS, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS, unitaryGateSupportsParam } from "../constants";
 import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
 import { fmt } from "../utils/layout";
 
@@ -64,17 +64,20 @@ export function PalettePanel({
         Drag elements onto the circuit
       </div>
 
-      {PALETTE_GROUPS.map(({ group, keys }) => (
+      {PALETTE_SECTIONS.map(({ group, items }) => (
         <div key={group}>
           <SectionTitle>{group}</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
-            {keys.map((key) => {
-              const def = GATE_DEFS[key];
+            {items.map((item, index) => {
+              const definition =
+                item.type === "unitary"
+                  ? UNITARY_GATE_DEFS[item.kind]
+                  : SPECIAL_QUBIT_INSTRUCTION_DEFS[item.type];
               return (
                 <button
-                  key={key}
-                  title={def.desc}
-                  onPointerDown={(event) => onStartPaletteDrag(event, { type: "gate", gateType: key })}
+                  key={`${group}-${index}`}
+                  title={definition.description}
+                  onPointerDown={(event) => onStartPaletteDrag(event, item)}
                   style={{
                     padding: "5px 2px",
                     cursor: "grab",
@@ -83,20 +86,20 @@ export function PalettePanel({
                     fontSize: 12,
                     borderRadius: 3,
                     background: UI_COLORS.white,
-                    color: def.c,
-                    border: `1.5px solid ${def.c}`,
+                    color: definition.color,
+                    border: `1.5px solid ${definition.color}`,
                     transition: "background .1s,color .1s",
                   }}
                   onMouseEnter={(event) => {
-                    event.currentTarget.style.background = def.c;
+                    event.currentTarget.style.background = definition.color;
                     event.currentTarget.style.color = UI_COLORS.white;
                   }}
                   onMouseLeave={(event) => {
                     event.currentTarget.style.background = UI_COLORS.white;
-                    event.currentTarget.style.color = def.c;
+                    event.currentTarget.style.color = definition.color;
                   }}
                 >
-                  {def.l}
+                  {definition.label}
                 </button>
               );
             })}
@@ -325,7 +328,7 @@ function SelectedElementCard({
       <div style={{ fontWeight: 700, color: UI_COLORS.yellow800, marginBottom: 3 }}>{selectedTitle(element)}</div>
       <div style={{ color: UI_COLORS.yellow900, lineHeight: 1.7 }}>{selectedDetails(element)}</div>
       <div style={{ display: "flex", gap: 4, marginTop: 7, flexWrap: "wrap" }}>
-        {element.type === "gate" && gateSupportsParam(element.gateType) ? (
+        {element.type === "unitary" && unitaryGateSupportsParam(element.kind) ? (
           <button
             onClick={() => onEditSelectedParam(element.id, element.param ?? 0)}
             style={actionChipStyle("#d97706", UI_COLORS.yellow50, UI_COLORS.amber700)}
@@ -333,7 +336,7 @@ function SelectedElementCard({
             Edit θ
           </button>
         ) : null}
-        {element.type === "gate" && element.gateType === "M" ? (
+        {element.type === "measurement" ? (
           <button onClick={() => onEditSelectedCreg(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
             Assign reg
           </button>
@@ -358,22 +361,31 @@ function selectedTitle(element: CircuitElement) {
   if (element.type === "swap") {
     return "SWAP node";
   }
+  if (element.type === "unitary") {
+    return UNITARY_GATE_DEFS[element.kind].description;
+  }
+  if (element.type === "measurement") {
+    return SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.description;
+  }
+  if (element.type === "reset") {
+    return SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.description;
+  }
   if (element.type === "custom") {
     return `Custom gate: ${element.classifier}`;
   }
   if (element.type === "cctrl") {
-    return `Condition: ${element.cregName} ${element.op} ${element.val}`;
+    return `Condition: ${element.condition.registerName} ${element.condition.operator} ${element.condition.value}`;
   }
-  return GATE_DEFS[element.gateType].desc;
+  return "Element";
 }
 
 function selectedDetails(element: CircuitElement) {
   if (element.type === "cctrl") {
     return (
       <>
-        reg: <b>{element.cregName}</b>
+        reg: <b>{element.condition.registerName}</b>
         <br />
-        condition: <b>{element.cregName} {element.op} {element.val}</b>
+        condition: <b>{element.condition.registerName} {element.condition.operator} {element.condition.value}</b>
         <br />
         col {element.step}
       </>
@@ -383,15 +395,15 @@ function selectedDetails(element: CircuitElement) {
   return (
     <>
       qubit {element.qubit} · col {element.step}
-      {element.type === "gate" && element.param != null ? (
+      {element.type === "unitary" && element.param != null ? (
         <>
           <br />θ = {fmt(element.param)} rad
         </>
       ) : null}
-      {element.type === "gate" && element.gateType === "M" ? (
+      {element.type === "measurement" ? (
         <>
           <br />
-          reg: <b>{element.creg ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
+          reg: <b>{element.registerName ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
         </>
       ) : null}
     </>

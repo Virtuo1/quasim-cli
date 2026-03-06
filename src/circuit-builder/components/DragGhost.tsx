@@ -1,4 +1,4 @@
-import { CONNECTOR_BLACK, GATE_DEFS } from "../constants";
+import { CONNECTOR_BLACK, SPECIAL_QUBIT_INSTRUCTION_DEFS, UNITARY_GATE_DEFS } from "../constants";
 import type { CustomGateDefinition } from "../types";
 import type { DragGhostState } from "../types";
 
@@ -19,7 +19,11 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
         ? "×"
         : ghost.type === "custom"
           ? customGateDefinitions.find((definition) => definition.classifier === ghost.classifier)?.classifier ?? ghost.classifier
-          : GATE_DEFS[ghost.gateType].l;
+          : ghost.type === "measurement"
+            ? SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.label
+            : ghost.type === "reset"
+              ? SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.label
+              : UNITARY_GATE_DEFS[ghost.kind].label;
   const color =
     ghost.type === "ctrl"
       ? CONNECTOR_BLACK
@@ -27,7 +31,11 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
         ? CONNECTOR_BLACK
         : ghost.type === "custom"
           ? CONNECTOR_BLACK
-          : GATE_DEFS[ghost.gateType].c;
+          : ghost.type === "measurement"
+            ? SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.color
+            : ghost.type === "reset"
+              ? SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.color
+              : UNITARY_GATE_DEFS[ghost.kind].color;
 
   return (
     <div

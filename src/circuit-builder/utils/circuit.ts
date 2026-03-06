@@ -4,7 +4,9 @@ import type {
   ClassicalRegister,
   ClassicalControlElement,
   CustomGateDefinition,
+  MeasurementElement,
   QuantumConnectorLine,
+  ResetElement,
   SerializedCircuit,
   SerializedGate,
   StepAnalysis,
@@ -17,14 +19,14 @@ export function compact(elements: CircuitElement[]) {
     return { elements: [], nS: MIN_STEPS };
   }
 
-  const occupied = [...new Set(elements.map((element) => element.step))].sort((a, b) => a - b);
-  const map: Record<number, number> = {};
-  occupied.forEach((step, index) => {
-    map[step] = index;
+  const occupiedSteps = [...new Set(elements.map((element) => element.step))].sort((a, b) => a - b);
+  const stepMap: Record<number, number> = {};
+  occupiedSteps.forEach((step, index) => {
+    stepMap[step] = index;
   });
 
-  const remapped = elements.map((element) => ({ ...element, step: map[element.step] })) as CircuitElement[];
-  return { elements: remapped, nS: Math.max(MIN_STEPS, occupied.length + 1) };
+  const remapped = elements.map((element) => ({ ...element, step: stepMap[element.step] })) as CircuitElement[];
+  return { elements: remapped, nS: Math.max(MIN_STEPS, occupiedSteps.length + 1) };
 }
 
 export function cellTaken(
@@ -47,98 +49,118 @@ export function cellTaken(
   });
 }
 
-export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
-  const swaps = stepEls.filter((el): el is Extract<CircuitElement, { type: "swap" }> => el.type === "swap");
-  const ctrls = stepEls.filter((el): el is Extract<CircuitElement, { type: "ctrl" }> => el.type === "ctrl");
-  const gates = stepEls.filter((el): el is Extract<CircuitElement, { type: "gate" }> => el.type === "gate");
-  const customs = stepEls.filter((el): el is Extract<CircuitElement, { type: "custom" }> => el.type === "custom");
-  const cctrl = stepEls.filter((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.type === "cctrl");
+export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
+  const swaps = stepElements.filter((element): element is Extract<CircuitElement, { type: "swap" }> => element.type === "swap");
+  const ctrls = stepElements.filter((element): element is Extract<CircuitElement, { type: "ctrl" }> => element.type === "ctrl");
+  const unitaryGates = stepElements.filter((element): element is Extract<CircuitElement, { type: "unitary" }> => element.type === "unitary");
+  const measurements = stepElements.filter((element): element is MeasurementElement => element.type === "measurement");
+  const resets = stepElements.filter((element): element is ResetElement => element.type === "reset");
+  const customs = stepElements.filter((element): element is Extract<CircuitElement, { type: "custom" }> => element.type === "custom");
+  const cctrl = stepElements.filter((element): element is Extract<CircuitElement, { type: "cctrl" }> => element.type === "cctrl");
 
+  const classicalOps = measurements.length + resets.length;
   const swapError = swaps.length !== 0 && swaps.length !== 2;
-  const ctrlOrphan = ctrls.length > 0 && gates.length + swaps.length + customs.length === 0;
-  const ctrlOnMeas = ctrls.length > 0 && gates.some((gate) => gate.gateType === "M");
+  const ctrlOrphan = ctrls.length > 0 && unitaryGates.length + swaps.length + measurements.length + resets.length + customs.length === 0;
+  const ctrlOnClassicalOp = ctrls.length > 0 && classicalOps > 0;
   const ctrlOnCustom = ctrls.length > 0 && customs.length > 0;
-  const cctrlOrphan = cctrl.length > 0 && gates.length + swaps.length + customs.length === 0;
+  const cctrlOrphan = cctrl.length > 0 && unitaryGates.length + swaps.length + measurements.length + resets.length + customs.length === 0;
   const cctrlMultiple = cctrl.length > 1;
-  const measNoReg = gates.some((gate) => gate.gateType === "M" && !gate.creg);
+  const measurementWithoutRegister = measurements.some((measurement) => !measurement.registerName);
 
   return {
     swaps,
     ctrls,
-    gates,
+    unitaryGates,
+    measurements,
+    resets,
     customs,
     cctrl,
     swapError,
     ctrlOrphan,
-    ctrlOnMeas,
+    ctrlOnClassicalOp,
     ctrlOnCustom,
     cctrlOrphan,
     cctrlMultiple,
-    measNoReg,
-    hasError: swapError || ctrlOrphan || ctrlOnMeas || ctrlOnCustom || cctrlOrphan || cctrlMultiple || measNoReg,
+    measurementWithoutRegister,
+    hasError:
+      swapError ||
+      ctrlOrphan ||
+      ctrlOnClassicalOp ||
+      ctrlOnCustom ||
+      cctrlOrphan ||
+      cctrlMultiple ||
+      measurementWithoutRegister,
   };
 }
 
-export function getConnectorLines(stepEls: CircuitElement[]): QuantumConnectorLine[] {
-  return getConnectorLinesWithCustoms(stepEls);
+export function getConnectorLines(stepElements: CircuitElement[]): QuantumConnectorLine[] {
+  return getConnectorLinesWithCustoms(stepElements);
 }
 
 export function getConnectorLinesWithCustoms(
-  stepEls: CircuitElement[],
+  stepElements: CircuitElement[],
   customGateDefinitions: CustomGateDefinition[] = [],
 ): QuantumConnectorLine[] {
-  const { swaps, ctrls, gates, customs, cctrl, swapError, ctrlOrphan, ctrlOnMeas, ctrlOnCustom } = analyzeStep(stepEls);
+  const { swaps, ctrls, unitaryGates, measurements, resets, customs, cctrl, swapError, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } =
+    analyzeStep(stepElements);
   const lines: QuantumConnectorLine[] = [];
-  const hasCctrl = cctrl.length > 0;
+  const hasClassicalControl = cctrl.length > 0;
 
   if (ctrls.length > 0) {
-    const all = [
+    const allQuantumNodes = [
       ...ctrls,
-      ...stepEls.filter((el): el is Extract<CircuitElement, { type: "gate" | "swap" | "custom" }> => el.type === "gate" || el.type === "swap" || el.type === "custom"),
+      ...unitaryGates,
+      ...measurements,
+      ...resets,
+      ...swaps,
+      ...customs,
     ];
-    const qs = all.flatMap((el) => {
-      if (el.type === "custom") {
-        const definition = customGateDefinitions.find((candidate) => candidate.classifier === el.classifier);
-        return customGateOccupiedQubits(el, definition);
+    const occupiedQubits = allQuantumNodes.flatMap((element) => {
+      if (element.type === "custom") {
+        const definition = customGateDefinitions.find((candidate) => candidate.classifier === element.classifier);
+        return customGateOccupiedQubits(element, definition);
       }
-      return [el.qubit];
+      return [element.qubit];
     });
-    if (qs.length > 0) {
-      const minQ = Math.min(...qs);
-      const maxQ = Math.max(...qs);
+
+    if (occupiedQubits.length > 0) {
+      const minQubit = Math.min(...occupiedQubits);
+      const maxQubit = Math.max(...occupiedQubits);
       const targetQubits = [
-        ...gates.map((gate) => gate.qubit),
+        ...unitaryGates.map((gate) => gate.qubit),
+        ...measurements.map((measurement) => measurement.qubit),
+        ...resets.map((reset) => reset.qubit),
         ...swaps.map((swap) => swap.qubit),
         ...customs.flatMap((custom) => {
           const definition = customGateDefinitions.find((candidate) => candidate.classifier === custom.classifier);
           return customGateOccupiedQubits(custom, definition);
         }),
       ];
-      const topTargetQ = targetQubits.length > 0 ? Math.min(...targetQubits) : maxQ;
+      const topTargetQubit = targetQubits.length > 0 ? Math.min(...targetQubits) : maxQubit;
 
-      if (hasCctrl && maxQ > topTargetQ) {
+      if (hasClassicalControl && maxQubit > topTargetQubit) {
         lines.push({
           kind: "quantum",
-          q1: minQ,
-          q2: topTargetQ,
-          error: ctrlOrphan || ctrlOnMeas || ctrlOnCustom || swapError,
+          q1: minQubit,
+          q2: topTargetQubit,
+          error: ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom || swapError,
         });
         return lines;
       }
 
       lines.push({
         kind: "quantum",
-        q1: minQ,
-        q2: maxQ,
-        error: ctrlOrphan || ctrlOnMeas || ctrlOnCustom || swapError,
+        q1: minQubit,
+        q2: maxQubit,
+        error: ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom || swapError,
       });
     }
-  } else if (swaps.length >= 2 && !hasCctrl) {
-    const qs = swaps.map((swap) => swap.qubit);
+  } else if (swaps.length >= 2 && !hasClassicalControl) {
+    const swapQubits = swaps.map((swap) => swap.qubit);
     lines.push({
       kind: "quantum",
-      q1: Math.min(...qs),
-      q2: Math.max(...qs),
+      q1: Math.min(...swapQubits),
+      q2: Math.max(...swapQubits),
       error: swapError,
     });
   }
@@ -162,71 +184,97 @@ export function exportCircuitToFile({
   const gates: SerializedGate[] = [];
 
   for (let step = 0; step < steps; step += 1) {
-    const stepEls = elements.filter((el) => el.step === step);
-    const analysis = analyzeStep(stepEls);
-    const { swaps, ctrls, gates: stepGates, customs, cctrl, ctrlOrphan, ctrlOnMeas, ctrlOnCustom } = analysis;
+    const stepElements = elements.filter((element) => element.step === step);
+    const analysis = analyzeStep(stepElements);
+    const { swaps, ctrls, unitaryGates, measurements, resets, customs, cctrl, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } = analysis;
     const controls =
-      ctrlOrphan || ctrlOnMeas || ctrlOnCustom
+      ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom
         ? []
-        : ctrls.map((el) => el.qubit).sort((a, b) => a - b);
+        : ctrls.map((element) => element.qubit).sort((a, b) => a - b);
     const condition =
       cctrl.length > 0
-        ? { reg: cctrl[0].cregName, op: cctrl[0].op, val: cctrl[0].val }
+        ? {
+            reg: cctrl[0].condition.registerName,
+            op: cctrl[0].condition.operator,
+            val: cctrl[0].condition.value,
+          }
         : null;
 
-    for (const gate of stepGates) {
-      const op: SerializedGate = { step, type: gate.gateType, qubit: gate.qubit };
-      if (controls.length) {
-        op.controls = controls;
+    for (const gate of unitaryGates) {
+      const operation: SerializedGate = { step, type: gate.kind, qubit: gate.qubit };
+      if (controls.length > 0) {
+        operation.controls = controls;
       }
       if (gate.param != null) {
-        op.param = gate.param;
-      }
-      if (gate.gateType === "M" && gate.creg) {
-        op.creg = gate.creg;
+        operation.param = gate.param;
       }
       if (condition) {
-        op.condition = condition;
+        operation.condition = condition;
       }
-      gates.push(op);
+      gates.push(operation);
+    }
+
+    for (const measurement of measurements) {
+      const operation: SerializedGate = { step, type: "M", qubit: measurement.qubit };
+      if (controls.length > 0) {
+        operation.controls = controls;
+      }
+      if (measurement.registerName) {
+        operation.creg = measurement.registerName;
+      }
+      if (condition) {
+        operation.condition = condition;
+      }
+      gates.push(operation);
+    }
+
+    for (const reset of resets) {
+      const operation: SerializedGate = { step, type: "RESET", qubit: reset.qubit };
+      if (controls.length > 0) {
+        operation.controls = controls;
+      }
+      if (condition) {
+        operation.condition = condition;
+      }
+      gates.push(operation);
     }
 
     for (const custom of customs) {
-      const op: SerializedGate = {
+      const operation: SerializedGate = {
         step,
         type: "CUSTOM",
         classifier: custom.classifier,
         qubit: custom.qubit,
       };
-      if (controls.length) {
-        op.controls = controls;
+      if (controls.length > 0) {
+        operation.controls = controls;
       }
       if (condition) {
-        op.condition = condition;
+        operation.condition = condition;
       }
-      gates.push(op);
+      gates.push(operation);
     }
 
     if (swaps.length === 2) {
-      const op: SerializedGate = {
+      const operation: SerializedGate = {
         step,
         type: "SWAP",
-        qubits: swaps.map((el) => el.qubit).sort((a, b) => a - b),
+        qubits: swaps.map((element) => element.qubit).sort((a, b) => a - b),
       };
-      if (controls.length) {
-        op.controls = controls;
+      if (controls.length > 0) {
+        operation.controls = controls;
       }
       if (condition) {
-        op.condition = condition;
+        operation.condition = condition;
       }
-      gates.push(op);
+      gates.push(operation);
     }
   }
 
   const data: SerializedCircuit = {
     qubits,
     steps,
-    classicalRegisters: classicalRegisters.map((reg) => reg.name),
+    classicalRegisters: classicalRegisters.map((register) => register.name),
     customGates: serializeCustomGateDefinitions(customGateDefinitions),
     gates,
   };
@@ -258,15 +306,29 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         step: gate.step,
         qubit: gate.qubit,
       });
-    } else if (gate.type !== "CUSTOM" && typeof gate.qubit === "number") {
+    } else if (gate.type === "M" && typeof gate.qubit === "number") {
       elements.push({
         id: uid(),
-        type: "gate",
-        gateType: gate.type,
+        type: "measurement",
+        step: gate.step,
+        qubit: gate.qubit,
+        registerName: gate.creg ?? null,
+      });
+    } else if (gate.type === "RESET" && typeof gate.qubit === "number") {
+      elements.push({
+        id: uid(),
+        type: "reset",
+        step: gate.step,
+        qubit: gate.qubit,
+      });
+    } else if (gate.type !== "M" && gate.type !== "RESET" && gate.type !== "CUSTOM" && typeof gate.qubit === "number") {
+      elements.push({
+        id: uid(),
+        type: "unitary",
+        kind: gate.type,
         step: gate.step,
         qubit: gate.qubit,
         param: gate.param,
-        creg: gate.creg ?? (gate.type === "M" ? null : undefined),
       });
     }
 
@@ -282,16 +344,19 @@ export function deserializeCircuit(raw: SerializedCircuit) {
       const key = `${gate.step}:${gate.condition.reg}`;
       if (!usedCctrl.has(key)) {
         usedCctrl.add(key);
-        const regIndex = classicalRegs.findIndex((reg) => reg.name === gate.condition?.reg);
+        const regIndex = classicalRegs.findIndex((register) => register.name === gate.condition?.reg);
         if (regIndex >= 0) {
           elements.push({
             id: uid(),
             type: "cctrl",
             step: gate.step,
             cregIdx: regIndex,
-            cregName: gate.condition.reg,
-            op: gate.condition.op,
-            val: gate.condition.val,
+            condition: {
+              kind: "comparison",
+              registerName: gate.condition.reg,
+              operator: gate.condition.op,
+              value: gate.condition.val,
+            },
           });
         }
       }
@@ -307,19 +372,19 @@ export function deserializeCircuit(raw: SerializedCircuit) {
 }
 
 export function measurementWireLine(
-  gate: Extract<CircuitElement, { type: "gate" }>,
+  measurement: MeasurementElement,
   classicalRegs: ClassicalRegister[],
   nQ: number,
 ) {
-  const regIdx = classicalRegs.findIndex((reg) => reg.name === gate.creg);
-  if (regIdx < 0) {
+  const registerIndex = classicalRegs.findIndex((register) => register.name === measurement.registerName);
+  if (registerIndex < 0) {
     return null;
   }
 
   return {
-    x: gate.step,
-    y1: wireY(gate.qubit) + GB / 2,
-    y2: cregY(regIdx, nQ) - 5,
+    x: measurement.step,
+    y1: wireY(measurement.qubit) + GB / 2,
+    y2: cregY(registerIndex, nQ) - 5,
   };
 }
 
@@ -329,25 +394,30 @@ export function classicalControlWireLine(
   nQ: number,
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
-  const stepGates = elements.filter(
-    (el): el is Extract<CircuitElement, { type: "gate" | "swap" | "custom" }> =>
-      el.step === control.step && (el.type === "gate" || el.type === "swap" || el.type === "custom"),
+  const stepTargets = elements.filter(
+    (element): element is Extract<CircuitElement, { type: "unitary" | "measurement" | "reset" | "swap" | "custom" }> =>
+      element.step === control.step &&
+      (element.type === "unitary" ||
+        element.type === "measurement" ||
+        element.type === "reset" ||
+        element.type === "swap" ||
+        element.type === "custom"),
   );
-  if (stepGates.length === 0) {
+  if (stepTargets.length === 0) {
     return null;
   }
 
-  const topQ = Math.min(
-    ...stepGates.flatMap((el) => {
-      if (el.type === "custom") {
-        const definition = customGateDefinitions.find((candidate) => candidate.classifier === el.classifier);
-        return customGateOccupiedQubits(el, definition);
+  const topTargetQubit = Math.min(
+    ...stepTargets.flatMap((element) => {
+      if (element.type === "custom") {
+        const definition = customGateDefinitions.find((candidate) => candidate.classifier === element.classifier);
+        return customGateOccupiedQubits(element, definition);
       }
-      return [el.qubit];
+      return [element.qubit];
     }),
   );
   return {
     y1: cregY(control.cregIdx, nQ) - 7,
-    y2: wireY(topQ),
+    y2: wireY(topTargetQubit),
   };
 }

@@ -82,11 +82,11 @@ export function CircuitCanvas({
         {elements.map((element) => {
           const analysis = stepAnalysis[element.step];
           const inError =
-            (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnMeas || analysis.ctrlOnCustom)) ||
+            (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnClassicalOp || analysis.ctrlOnCustom)) ||
             (element.type === "custom" && analysis.ctrlOnCustom) ||
             (element.type === "swap" && analysis.swapError) ||
             (element.type === "cctrl" && (analysis.cctrlOrphan || analysis.cctrlMultiple)) ||
-            (element.type === "gate" && element.gateType === "M" && !element.creg);
+            (element.type === "measurement" && !element.registerName);
 
           return (
             <ElementNode

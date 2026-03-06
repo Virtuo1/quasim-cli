@@ -8,11 +8,7 @@ import type {
 } from "../types";
 
 export function isGroupableQuantumElement(element: CircuitElement): element is GroupableElement {
-  if (element.type === "ctrl" || element.type === "swap") {
-    return true;
-  }
-
-  return element.type === "gate" && element.gateType !== "M";
+  return element.type === "ctrl" || element.type === "swap" || element.type === "unitary";
 }
 
 export function elementOccupiedQubits(
@@ -157,13 +153,13 @@ function buildRelativeOperations(
     const swaps = stepElements.filter(
       (element): element is Extract<GroupableElement, { type: "swap" }> => element.type === "swap",
     );
-    const gates = stepElements.filter(
-      (element): element is Extract<GroupableElement, { type: "gate" }> => element.type === "gate",
+    const unitaryGates = stepElements.filter(
+      (element): element is Extract<GroupableElement, { type: "unitary" }> => element.type === "unitary",
     );
     const controls = ctrls.map((element) => element.qubit - minQubit).sort((a, b) => a - b);
     const relativeStep = step - minStep;
 
-    if (ctrls.length > 0 && gates.length + swaps.length === 0) {
+    if (ctrls.length > 0 && unitaryGates.length + swaps.length === 0) {
       return { reason: "A custom gate step cannot consist only of control nodes." };
     }
 
@@ -171,10 +167,10 @@ function buildRelativeOperations(
       return { reason: "A custom gate step must contain either zero or exactly two swap nodes." };
     }
 
-    for (const gate of gates) {
+    for (const gate of unitaryGates) {
       operations.push({
         step: relativeStep,
-        type: gate.gateType,
+        type: gate.kind,
         qubit: gate.qubit - minQubit,
         param: gate.param,
         controls: controls.length > 0 ? controls : undefined,

@@ -1,4 +1,4 @@
-import type { COND_OPS, GateType } from "./constants";
+import type { COND_OPS, UnitaryGateKind } from "./constants";
 
 export type ConditionOperator = (typeof COND_OPS)[number];
 
@@ -7,9 +7,16 @@ export interface ClassicalRegister {
   name: string;
 }
 
-/**
- * Circuit elements
- */
+export interface ComparisonCondition {
+  kind: "comparison";
+  registerName: string;
+  operator: ConditionOperator;
+  value: number;
+}
+
+// The current UI only edits simple register comparisons, but this is intentionally
+// modeled as a condition object so it can later grow into a richer expression tree.
+export type ClassicalCondition = ComparisonCondition;
 
 export interface BaseElement {
   id: number;
@@ -26,12 +33,22 @@ export interface SwapElement extends BaseElement {
   qubit: number;
 }
 
-export interface GateElement extends BaseElement {
-  type: "gate";
-  gateType: GateType;
+export interface UnitaryGateElement extends BaseElement {
+  type: "unitary";
   qubit: number;
+  kind: UnitaryGateKind;
   param?: number;
-  creg?: string | null;
+}
+
+export interface MeasurementElement extends BaseElement {
+  type: "measurement";
+  qubit: number;
+  registerName: string | null;
+}
+
+export interface ResetElement extends BaseElement {
+  type: "reset";
+  qubit: number;
 }
 
 export interface CustomGateElement extends BaseElement {
@@ -43,18 +60,21 @@ export interface CustomGateElement extends BaseElement {
 export interface ClassicalControlElement extends BaseElement {
   type: "cctrl";
   cregIdx: number;
-  cregName: string;
-  op: ConditionOperator;
-  val: number;
+  condition: ClassicalCondition;
 }
 
-export type GroupableElement = ControlElement | SwapElement | GateElement;
-
-export type CircuitElement =
+export type QuantumRenderableElement =
   | ControlElement
   | SwapElement
-  | GateElement
-  | CustomGateElement
+  | UnitaryGateElement
+  | MeasurementElement
+  | ResetElement
+  | CustomGateElement;
+
+export type GroupableElement = ControlElement | SwapElement | UnitaryGateElement;
+
+export type CircuitElement =
+  | QuantumRenderableElement
   | ClassicalControlElement;
 
 export interface QuantumConnectorLine {
@@ -67,16 +87,18 @@ export interface QuantumConnectorLine {
 export interface StepAnalysis {
   swaps: SwapElement[];
   ctrls: ControlElement[];
-  gates: GateElement[];
+  unitaryGates: UnitaryGateElement[];
+  measurements: MeasurementElement[];
+  resets: ResetElement[];
   customs: CustomGateElement[];
   cctrl: ClassicalControlElement[];
   swapError: boolean;
   ctrlOrphan: boolean;
-  ctrlOnMeas: boolean;
+  ctrlOnClassicalOp: boolean;
   ctrlOnCustom: boolean;
   cctrlOrphan: boolean;
   cctrlMultiple: boolean;
-  measNoReg: boolean;
+  measurementWithoutRegister: boolean;
   hasError: boolean;
 }
 
@@ -85,7 +107,9 @@ export type StepAnalysisMap = Record<number, StepAnalysis>;
 export type PaletteDragSpec =
   | { type: "ctrl" }
   | { type: "swap" }
-  | { type: "gate"; gateType: GateType }
+  | { type: "unitary"; kind: UnitaryGateKind }
+  | { type: "measurement" }
+  | { type: "reset" }
   | { type: "custom"; classifier: string };
 
 export type DragGhostState = PaletteDragSpec & {
@@ -127,7 +151,7 @@ export interface SelectionBox {
 
 export interface SerializedGate {
   step: number;
-  type: GateType | "SWAP" | "CUSTOM";
+  type: UnitaryGateKind | "SWAP" | "M" | "RESET" | "CUSTOM";
   qubit?: number;
   qubits?: number[];
   controls?: number[];
@@ -143,7 +167,7 @@ export interface SerializedGate {
 
 export interface SerializedCustomGateOperation {
   step: number;
-  type: GateType | "SWAP";
+  type: UnitaryGateKind | "SWAP";
   qubit?: number;
   qubits?: number[];
   controls?: number[];

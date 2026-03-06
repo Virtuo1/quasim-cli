@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
-import { GATE_DEFS, UI_COLORS } from "../../constants";
-import type { GateElement, ParameterModalState } from "../../types";
+import { UI_COLORS, UNITARY_GATE_DEFS } from "../../constants";
+import type { ParameterModalState, UnitaryGateElement } from "../../types";
 import { ModalFrame } from "./ModalFrame";
 
 interface ParameterModalProps {
   modal: ParameterModalState | null;
-  element: GateElement | null;
+  element: UnitaryGateElement | null;
   onCancel: () => void;
   onChange: (value: number) => void;
   onApply: () => void;
@@ -23,7 +23,7 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
     return null;
   }
 
-  const def = GATE_DEFS[element.gateType];
+  const def = UNITARY_GATE_DEFS[element.kind];
   const presets = [
     ["π/8", Math.PI / 8],
     ["π/4", Math.PI / 4],
@@ -35,7 +35,7 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
 
   return (
     <ModalFrame width={340}>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{def.desc} — θ</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{def.description} — θ</div>
       <div style={{ fontSize: 12, color: UI_COLORS.slate500, marginBottom: 14 }}>Angle in radians</div>
       <input
         type="number"

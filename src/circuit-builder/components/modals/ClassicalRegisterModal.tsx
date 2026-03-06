@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { UI_COLORS } from "../../constants";
-import type { ClassicalRegister, GateElement, ClassicalRegisterModalState } from "../../types";
+import type { ClassicalRegister, ClassicalRegisterModalState, MeasurementElement } from "../../types";
 import { ModalFrame } from "./ModalFrame";
 
 interface ClassicalRegisterModalProps {
   modal: ClassicalRegisterModalState | null;
-  element: GateElement | null;
+  element: MeasurementElement | null;
   classicalRegs: ClassicalRegister[];
   onCancel: () => void;
   onAssign: (regName: string) => void;
@@ -31,7 +31,7 @@ export function ClassicalRegisterModal({
       return;
     }
 
-    setSelectedReg(element.creg ?? classicalRegs[0]?.name ?? "");
+    setSelectedReg(element.registerName ?? classicalRegs[0]?.name ?? "");
     setNewName("");
   }, [classicalRegs, element, modal]);
 

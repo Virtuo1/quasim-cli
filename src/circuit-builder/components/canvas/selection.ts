@@ -77,7 +77,7 @@ function getElementBounds(
     };
   }
 
-  const label = element.param != null ? `${element.gateType}(${element.param})` : element.gateType;
+  const label = element.type === "unitary" && element.param != null ? `${element.kind}(${element.param})` : element.type === "unitary" ? element.kind : element.type === "measurement" ? "M" : "|0⟩";
   const width = label.length > 5 ? 56 : GB;
   return { left: cx - width / 2, top: cy - GB / 2, right: cx + width / 2, bottom: cy + GB / 2 };
 }

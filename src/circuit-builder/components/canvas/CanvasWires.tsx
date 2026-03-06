@@ -81,7 +81,7 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
   return (
     <>
       {elements
-        .filter((el): el is Extract<CircuitElement, { type: "gate" }> => el.type === "gate" && el.gateType === "M" && !!el.creg)
+        .filter((el): el is Extract<CircuitElement, { type: "measurement" }> => el.type === "measurement" && !!el.registerName)
         .map((element) => {
           const line = measurementWireLine(element, classicalRegs, nQ);
           if (!line) {

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { COND_OPS, MIN_STEPS } from "../constants";
+import { COND_OPS, MIN_STEPS, unitaryGateSupportsParam } from "../constants";
 import type {
   CircuitElement,
   ClassicalControlElement,
+  ClassicalCondition,
   ClassicalRegister,
   ClassicalRegisterModalState,
   ConditionModalState,
@@ -19,7 +20,6 @@ import type {
 } from "../types";
 import { analyzeStep, cellTaken, compact, deserializeCircuit, exportCircuitToFile } from "../utils/circuit";
 import { clientToCanvasHit, clientToSvgPoint, uid } from "../utils/layout";
-import { gateSupportsParam } from "../constants";
 import { normalizeSelectionBox, selectionHitsElement } from "../components/canvas/selection";
 import {
   buildCustomGateDefinition,
@@ -215,20 +215,34 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
   const applyQubitDrop = useCallback(
     (preview: Extract<DropPreview, { zone: "qubit" }>, spec: PaletteDragSpec) => {
-      const isMeasurement = spec.type === "gate" && spec.gateType === "M";
-      const needsParam = spec.type === "gate" && gateSupportsParam(spec.gateType);
+      const isMeasurement = spec.type === "measurement";
+      const needsParam = spec.type === "unitary" && unitaryGateSupportsParam(spec.kind);
       const newStep = preview.insertAt ?? preview.step;
       const newElement: CircuitElement =
-        spec.type === "gate"
+        spec.type === "unitary"
           ? {
               id: uid(),
-              type: "gate",
-              gateType: spec.gateType,
+              type: "unitary",
+              kind: spec.kind,
               step: newStep,
               qubit: preview.qubit,
               param: needsParam ? 0 : undefined,
-              creg: isMeasurement ? null : undefined,
             }
+          : spec.type === "measurement"
+            ? {
+                id: uid(),
+                type: "measurement",
+                step: newStep,
+                qubit: preview.qubit,
+                registerName: null,
+              }
+            : spec.type === "reset"
+              ? {
+                  id: uid(),
+                  type: "reset",
+                  step: newStep,
+                  qubit: preview.qubit,
+                }
           : spec.type === "custom"
             ? {
                 id: uid(),
@@ -254,8 +268,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         if (classicalRegsRef.current.length > 0) {
           setElements((current) =>
             current.map((el) =>
-              el.id === newElement.id && el.type === "gate"
-                ? { ...el, creg: classicalRegsRef.current[0]?.name ?? null }
+              el.id === newElement.id && el.type === "measurement"
+                ? { ...el, registerName: classicalRegsRef.current[0]?.name ?? null }
                 : el,
             ),
           );
@@ -270,14 +284,18 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
   const applyCregDrop = useCallback(
     (preview: Extract<DropPreview, { zone: "creg" }>) => {
+      const condition: ClassicalCondition = {
+        kind: "comparison",
+        registerName: preview.cregName,
+        operator: "==",
+        value: 0,
+      };
       const newElement: ClassicalControlElement = {
         id: uid(),
         type: "cctrl",
         step: preview.insertAt ?? preview.step,
         cregIdx: preview.cregIdx,
-        cregName: preview.cregName,
-        op: "==",
-        val: 0,
+        condition,
       };
 
       setElements((current) => {
@@ -326,8 +344,14 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const createElementGhost = useCallback((element: CircuitElement, clientX: number, clientY: number): DragGhostState => {
-    if (element.type === "gate") {
-      return { x: clientX, y: clientY, type: "gate", gateType: element.gateType };
+    if (element.type === "unitary") {
+      return { x: clientX, y: clientY, type: "unitary", kind: element.kind };
+    }
+    if (element.type === "measurement") {
+      return { x: clientX, y: clientY, type: "measurement" };
+    }
+    if (element.type === "reset") {
+      return { x: clientX, y: clientY, type: "reset" };
     }
     if (element.type === "swap") {
       return { x: clientX, y: clientY, type: "swap" };
@@ -353,7 +377,15 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
             // Remove the moving element before shifting so the inserted column is based on the remaining circuit.
             const others = current.filter((el) => el.id !== elementId);
             const shifted = insertAtStep(others, insertStep);
-            return [...shifted, { ...movingEl, step: insertStep, cregIdx: preview.cregIdx, cregName: preview.cregName }];
+            return [
+              ...shifted,
+              {
+                ...movingEl,
+                step: insertStep,
+                cregIdx: preview.cregIdx,
+                condition: { ...movingEl.condition, registerName: preview.cregName },
+              },
+            ];
           });
           return;
         }
@@ -361,7 +393,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         setElements((current) =>
           current.map((el) =>
             el.id === elementId && el.type === "cctrl"
-              ? { ...el, step: preview.step, cregIdx: preview.cregIdx, cregName: preview.cregName }
+              ? { ...el, step: preview.step, cregIdx: preview.cregIdx, condition: { ...el.condition, registerName: preview.cregName } }
               : el,
           ),
         );
@@ -544,14 +576,14 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setCregs((current) => current.filter((entry) => entry.id !== regId));
       setElements((current) =>
         current
-          .filter((el) => !(el.type === "cctrl" && el.cregName === reg.name))
+          .filter((el) => !(el.type === "cctrl" && el.condition.registerName === reg.name))
           .map((el) => {
             if (el.type === "cctrl" && el.cregIdx > deletedIdx) {
               return { ...el, cregIdx: el.cregIdx - 1 };
             }
 
-            if (el.type === "gate" && el.gateType === "M" && el.creg === reg.name) {
-              return { ...el, creg: null };
+            if (el.type === "measurement" && el.registerName === reg.name) {
+              return { ...el, registerName: null };
             }
 
             return el;
@@ -659,7 +691,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const parameterModalElement = useMemo(
     () =>
       parameterModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "gate" }> => el.id === parameterModal.id && el.type === "gate") ?? null
+        ? elements.find((el): el is Extract<CircuitElement, { type: "unitary" }> => el.id === parameterModal.id && el.type === "unitary") ?? null
         : null,
     [elements, parameterModal],
   );
@@ -667,7 +699,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const classicalRegisterModalElement = useMemo(
     () =>
       classicalRegisterModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "gate" }> => el.id === classicalRegisterModal.elId && el.type === "gate") ?? null
+        ? elements.find((el): el is Extract<CircuitElement, { type: "measurement" }> => el.id === classicalRegisterModal.elId && el.type === "measurement") ?? null
         : null,
     [classicalRegisterModal, elements],
   );
@@ -687,7 +719,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       }
       setElements((current) =>
         current.map((el) =>
-          el.id === classicalRegisterModal.elId && el.type === "gate" ? { ...el, creg: registerName } : el,
+          el.id === classicalRegisterModal.elId && el.type === "measurement" ? { ...el, registerName } : el,
         ),
       );
       setClassicalRegisterModal(null);
@@ -705,7 +737,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setCregs((current) => [...current, { id: uid(), name: trimmed }]);
       setElements((current) =>
         current.map((el) =>
-          el.id === classicalRegisterModal.elId && el.type === "gate" ? { ...el, creg: trimmed } : el,
+          el.id === classicalRegisterModal.elId && el.type === "measurement" ? { ...el, registerName: trimmed } : el,
         ),
       );
       setClassicalRegisterModal(null);
@@ -720,7 +752,19 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       }
 
       setElements((current) =>
-        current.map((el) => (el.id === conditionModal.elId && el.type === "cctrl" ? { ...el, op, val } : el)),
+        current.map((el) =>
+          el.id === conditionModal.elId && el.type === "cctrl"
+            ? {
+                ...el,
+                condition: {
+                  kind: "comparison",
+                  registerName: el.condition.registerName,
+                  operator: op,
+                  value: val,
+                },
+              }
+            : el,
+        ),
       );
       setConditionModal(null);
     },
@@ -734,7 +778,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
     setElements((current) =>
       current.map((el) =>
-        el.id === parameterModal.id && el.type === "gate" ? { ...el, param: parameterModal.val } : el,
+        el.id === parameterModal.id && el.type === "unitary" ? { ...el, param: parameterModal.val } : el,
       ),
     );
     setParameterModal(null);

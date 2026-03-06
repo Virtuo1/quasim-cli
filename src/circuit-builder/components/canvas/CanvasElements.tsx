@@ -1,4 +1,4 @@
-import { CONNECTOR_BLACK, ERROR_COLORS, GB, UI_COLORS, gateSupportsParam, GATE_DEFS } from "../../constants";
+import { CONNECTOR_BLACK, ERROR_COLORS, GB, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS, unitaryGateSupportsParam } from "../../constants";
 import type { CircuitElement, CustomGateDefinition } from "../../types";
 import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
@@ -63,7 +63,7 @@ export function ElementNode({
         {selected ? <circle cx={cx} cy={cy} r={12} fill={UI_COLORS.amber500} opacity={0.15} /> : null}
         <circle cx={cx} cy={cy} r={7} fill={color} />
         <text x={cx} y={cy + 17} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={UI_COLORS.slate600} fontWeight={600}>
-          {`${element.op} ${element.val}`}
+          {`${element.condition.operator} ${element.condition.value}`}
         </text>
         {inError ? <text x={cx + 10} y={cy - 8} fontSize={10} fill={errorColor} fontWeight="bold">!</text> : null}
       </g>
@@ -90,25 +90,38 @@ export function ElementNode({
   }
 
   const cy = wireY(element.qubit);
-  const def = GATE_DEFS[element.gateType];
-  const raw = gateSupportsParam(element.gateType) && element.param != null ? `${def.l}(${formatAngle(element.param)})` : def.l;
-  const boxWidth = raw.length > 5 ? 56 : GB;
-  const fontSize = raw.length > 6 ? 8 : raw.length > 4 ? 10 : 12;
-  const fill = selected ? UI_COLORS.amber500 : def.c;
-  const stroke = selected ? UI_COLORS.amber700 : "none";
-
-  if (element.gateType === "M") {
+  if (element.type === "measurement") {
+    const fill = selected ? UI_COLORS.amber500 : SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.color;
     return (
       <g {...ops}>
         <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={inError ? errorColor : fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
         <path d={`M ${cx - 9} ${cy + 4} A 9 9 0 0 1 ${cx + 9} ${cy + 4}`} stroke={UI_COLORS.white} strokeWidth={1.5} fill="none" />
         <line x1={cx} y1={cy + 4} x2={cx + 8} y2={cy - 6} stroke={UI_COLORS.white} strokeWidth={1.5} />
-        <text x={cx} y={cy - GB / 2 - 4} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={element.creg ? UI_COLORS.slate500 : ERROR_COLORS.label}>
-          {element.creg ?? "no reg"}
+        <text x={cx} y={cy - GB / 2 - 4} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={element.registerName ? UI_COLORS.slate500 : ERROR_COLORS.label}>
+          {element.registerName ?? "no reg"}
         </text>
       </g>
     );
   }
+
+  if (element.type === "reset") {
+    const fill = selected ? UI_COLORS.amber500 : SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.color;
+    return (
+      <g {...ops}>
+        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={12} fontFamily="monospace" fontWeight={700}>
+          {SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.label}
+        </text>
+      </g>
+    );
+  }
+
+  const definition = UNITARY_GATE_DEFS[element.kind];
+  const raw = unitaryGateSupportsParam(element.kind) && element.param != null ? `${definition.label}(${formatAngle(element.param)})` : definition.label;
+  const boxWidth = raw.length > 5 ? 56 : GB;
+  const fontSize = raw.length > 6 ? 8 : raw.length > 4 ? 10 : 12;
+  const fill = selected ? UI_COLORS.amber500 : definition.color;
+  const stroke = selected ? UI_COLORS.amber700 : "none";
 
   return (
     <g {...ops}>
