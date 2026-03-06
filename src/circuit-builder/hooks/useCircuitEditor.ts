@@ -461,7 +461,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (
-        (event.key === "Delete" || event.key === "Backspace") &&
+        event.key === "Delete" &&
         selectedIds.length > 0 &&
         !classicalRegisterModal &&
         !parameterModal &&

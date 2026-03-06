@@ -88,9 +88,6 @@ function App() {
       </div>
 
       <StatusBar
-        nQ={state.nQ}
-        nS={state.nS}
-        elementCount={state.elements.length}
         selectedElement={state.selectedElement}
         selectedCount={state.selectedCount}
         dropPreview={state.dropPreview}

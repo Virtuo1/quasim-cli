@@ -4,16 +4,13 @@ import { describeCondition } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface StatusBarProps {
-  nQ: number;
-  nS: number;
-  elementCount: number;
   selectedElement: CircuitElement | null;
   selectedCount: number;
   dropPreview: DropPreview | null;
   errorSteps: number;
 }
 
-export function StatusBar({ nQ, nS, elementCount, selectedElement, selectedCount, dropPreview, errorSteps }: StatusBarProps) {
+export function StatusBar({ selectedElement, selectedCount, dropPreview, errorSteps }: StatusBarProps) {
   return (
     <div
       style={{
@@ -54,9 +51,6 @@ export function StatusBar({ nQ, nS, elementCount, selectedElement, selectedCount
         <span style={{ color: ERROR_COLORS.muted }}>⚠ {errorSteps} col{errorSteps !== 1 ? "s" : ""} with errors</span>
       ) : null}
       <div style={{ flex: 1 }} />
-      <span style={{ color: UI_COLORS.slate600 }}>
-        {nQ} qubits · {nS} cols · {elementCount} elements
-      </span>
     </div>
   );
 }
