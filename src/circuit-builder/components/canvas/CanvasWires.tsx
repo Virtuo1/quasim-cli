@@ -1,5 +1,5 @@
 import { CONNECTOR_BLACK, CW, ERROR_COLORS, UI_COLORS, LW, PX, PY } from "../../constants";
-import type { CircuitElement, ClassicalRegister, QuantumConnectorLine } from "../../types";
+import type { CircuitElement, ClassicalRegister, CustomGateDefinition, QuantumConnectorLine } from "../../types";
 import { classicalControlWireLine, measurementWireLine } from "../../utils/circuit";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
@@ -48,17 +48,19 @@ export function QubitWires({ nQ, columnCount }: { nQ: number; columnCount: numbe
 export function QuantumConnectorLines({
   nS,
   elements,
+  customGateDefinitions,
   getConnectorLines,
 }: {
   nS: number;
   elements: CircuitElement[];
-  getConnectorLines: (stepEls: CircuitElement[]) => QuantumConnectorLine[];
+  customGateDefinitions: CustomGateDefinition[];
+  getConnectorLines: (stepEls: CircuitElement[], customGateDefinitions?: CustomGateDefinition[]) => QuantumConnectorLine[];
 }) {
   return (
     <>
       {Array.from({ length: nS }, (_, step) => {
         const stepElements = elements.filter((el) => el.step === step);
-        return getConnectorLines(stepElements).map((line, index) => (
+        return getConnectorLines(stepElements, customGateDefinitions).map((line, index) => (
           <line
             key={`connector-${step}-${index}`}
             x1={wireX(step)}
@@ -96,13 +98,21 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
   );
 }
 
-export function ClassicalControlWires({ elements, nQ }: { elements: CircuitElement[]; nQ: number }) {
+export function ClassicalControlWires({
+  elements,
+  nQ,
+  customGateDefinitions,
+}: {
+  elements: CircuitElement[];
+  nQ: number;
+  customGateDefinitions: CustomGateDefinition[];
+}) {
   return (
     <>
       {elements
         .filter((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.type === "cctrl")
         .map((element) => {
-          const line = classicalControlWireLine(element, elements, nQ);
+          const line = classicalControlWireLine(element, elements, nQ, customGateDefinitions);
           if (!line) {
             return null;
           }

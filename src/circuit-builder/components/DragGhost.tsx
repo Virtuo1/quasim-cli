@@ -1,19 +1,33 @@
 import { CONNECTOR_BLACK, GATE_DEFS } from "../constants";
+import type { CustomGateDefinition } from "../types";
 import type { DragGhostState } from "../types";
 
 interface DragGhostProps {
   ghost: DragGhostState | null;
+  customGateDefinitions?: CustomGateDefinition[];
 }
 
-export function DragGhost({ ghost }: DragGhostProps) {
+export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps) {
   if (!ghost) {
     return null;
   }
 
   const label =
-    ghost.type === "ctrl" ? "●" : ghost.type === "swap" ? "×" : GATE_DEFS[ghost.gateType].l;
+    ghost.type === "ctrl"
+      ? "●"
+      : ghost.type === "swap"
+        ? "×"
+        : ghost.type === "custom"
+          ? customGateDefinitions.find((definition) => definition.classifier === ghost.classifier)?.label ?? ghost.classifier
+          : GATE_DEFS[ghost.gateType].l;
   const color =
-    ghost.type === "ctrl" ? CONNECTOR_BLACK : ghost.type === "swap" ? CONNECTOR_BLACK : GATE_DEFS[ghost.gateType].c;
+    ghost.type === "ctrl"
+      ? CONNECTOR_BLACK
+      : ghost.type === "swap"
+        ? CONNECTOR_BLACK
+        : ghost.type === "custom"
+          ? CONNECTOR_BLACK
+          : GATE_DEFS[ghost.gateType].c;
 
   return (
     <div

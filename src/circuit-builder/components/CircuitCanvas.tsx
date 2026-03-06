@@ -1,5 +1,5 @@
 import { CH, CREG_GAP, CRH, CW, LW, PX, PY, UI_COLORS } from "../constants";
-import type { CircuitElement, ClassicalRegister, DropPreview, SelectionBox, StepAnalysisMap } from "../types";
+import type { CircuitElement, ClassicalRegister, CustomGateDefinition, DropPreview, SelectionBox, StepAnalysisMap } from "../types";
 import { getConnectorLines } from "../utils/circuit";
 import { ClassicalControlWires, ClassicalRegisterLines, MeasurementWires, QuantumConnectorLines, QubitWires, StepLabels } from "./canvas/CanvasWires";
 import { DropPreviewOverlay } from "./canvas/DropPreviewOverlay";
@@ -11,6 +11,7 @@ interface CircuitCanvasProps {
   nS: number;
   elements: CircuitElement[];
   classicalRegs: ClassicalRegister[];
+  customGateDefinitions: CustomGateDefinition[];
   selectedIds: number[];
   draggingId: number | null;
   dropPreview: DropPreview | null;
@@ -26,6 +27,7 @@ export function CircuitCanvas({
   nS,
   elements,
   classicalRegs,
+  customGateDefinitions,
   selectedIds,
   draggingId,
   dropPreview,
@@ -67,10 +69,10 @@ export function CircuitCanvas({
           />
         ) : null}
         <QubitWires nQ={nQ} columnCount={nS} />
-        <QuantumConnectorLines nS={nS} elements={elements} getConnectorLines={getConnectorLines} />
+        <QuantumConnectorLines nS={nS} elements={elements} customGateDefinitions={customGateDefinitions} getConnectorLines={getConnectorLines} />
         <MeasurementWires elements={elements} classicalRegs={classicalRegs} nQ={nQ} />
         <ClassicalRegisterLines classicalRegs={classicalRegs} nQ={nQ} nS={nS} />
-        <ClassicalControlWires elements={elements} nQ={nQ} />
+        <ClassicalControlWires elements={elements} nQ={nQ} customGateDefinitions={customGateDefinitions} />
 
         {elements.map((element) => {
           const analysis = stepAnalysis[element.step];
@@ -85,6 +87,7 @@ export function CircuitCanvas({
               key={element.id}
               element={element}
               nQ={nQ}
+              customGateDefinitions={customGateDefinitions}
               selected={selectedIds.includes(element.id)}
               dragging={element.id === draggingId}
               inError={inError}

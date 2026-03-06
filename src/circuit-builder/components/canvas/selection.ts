@@ -1,5 +1,6 @@
 import { GB } from "../../constants";
-import type { CircuitElement, SelectionBox } from "../../types";
+import type { CircuitElement, CustomGateDefinition, SelectionBox } from "../../types";
+import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
 interface Bounds {
@@ -32,13 +33,22 @@ export function getSelectionBounds(box: SelectionBox): Bounds {
   };
 }
 
-export function selectionHitsElement(box: SelectionBox, element: CircuitElement, nQ: number) {
+export function selectionHitsElement(
+  box: SelectionBox,
+  element: CircuitElement,
+  nQ: number,
+  customGateDefinitions: CustomGateDefinition[] = [],
+) {
   const a = getSelectionBounds(box);
-  const b = getElementBounds(element, nQ);
+  const b = getElementBounds(element, nQ, customGateDefinitions);
   return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
 }
 
-function getElementBounds(element: CircuitElement, nQ: number): Bounds {
+function getElementBounds(
+  element: CircuitElement,
+  nQ: number,
+  customGateDefinitions: CustomGateDefinition[],
+): Bounds {
   const cx = wireX(element.step);
 
   if (element.type === "cctrl") {
@@ -54,6 +64,17 @@ function getElementBounds(element: CircuitElement, nQ: number): Bounds {
 
   if (element.type === "swap") {
     return { left: cx - 18, top: cy - 18, right: cx + 18, bottom: cy + 18 };
+  }
+
+  if (element.type === "custom") {
+    const definition = findCustomGateDefinition(element.classifier, customGateDefinitions);
+    const occupiedQubits = customGateOccupiedQubits(element, definition);
+    return {
+      left: cx - 24,
+      top: wireY(Math.min(...occupiedQubits)) - GB / 2,
+      right: cx + 24,
+      bottom: wireY(Math.max(...occupiedQubits)) + GB / 2,
+    };
   }
 
   const label = element.param != null ? `${element.gateType}(${element.param})` : element.gateType;

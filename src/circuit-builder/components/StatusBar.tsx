@@ -66,7 +66,13 @@ function selectedMessage(element: CircuitElement) {
   }
 
   const label =
-    element.type === "ctrl" ? "Control" : element.type === "swap" ? "SWAP" : GATE_DEFS[element.gateType].desc;
+    element.type === "ctrl"
+      ? "Control"
+      : element.type === "swap"
+        ? "SWAP"
+        : element.type === "custom"
+          ? `Custom gate ${element.classifier}`
+          : GATE_DEFS[element.gateType].desc;
   const angle = element.type === "gate" && element.param != null ? ` · θ=${fmt(element.param)}` : "";
   const measurement =
     element.type === "gate" && element.gateType === "M"

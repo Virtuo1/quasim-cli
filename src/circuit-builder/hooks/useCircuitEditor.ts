@@ -7,8 +7,11 @@ import type {
   ClassicalRegister,
   ClassicalRegisterModalState,
   ConditionModalState,
+  CustomGateDefinition,
+  CustomGateModalState,
   DragGhostState,
   DropPreview,
+  GroupableElement,
   PaletteDragSpec,
   ParameterModalState,
   SelectionBox,
@@ -19,6 +22,13 @@ import { analyzeStep, cellTaken, compact, deserializeCircuit, exportCircuitToFil
 import { clientToCanvasHit, clientToSvgPoint, uid } from "../utils/layout";
 import { gateSupportsParam } from "../constants";
 import { normalizeSelectionBox, selectionHitsElement } from "../components/canvas/selection";
+import {
+  buildCustomGateDefinition,
+  canCreateCustomGate,
+  customGateSpan,
+  findCustomGateDefinition,
+  isGroupableQuantumElement,
+} from "../utils/customGates";
 
 interface UseCircuitEditorArgs {
   svgRef: React.RefObject<SVGSVGElement | null>;
@@ -32,10 +42,12 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const [elements, setRawElements] = useState<CircuitElement[]>([]);
   const [nS, setNS] = useState(MIN_STEPS);
   const [classicalRegs, setCregs] = useState<ClassicalRegister[]>([]);
+  const [customGateDefinitions, setCustomGateDefinitions] = useState<CustomGateDefinition[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [parameterModal, setParameterModal] = useState<ParameterModalState | null>(null);
   const [classicalRegisterModal, setClassicalRegisterModal] = useState<ClassicalRegisterModalState | null>(null);
   const [conditionModal, setConditionModal] = useState<ConditionModalState | null>(null);
+  const [customGateModal, setCustomGateModal] = useState<CustomGateModalState | null>(null);
   const [newRegName, setNewRegName] = useState("");
   const [dragGhost, setDragGhost] = useState<DragGhostState | null>(null);
   const [dropPreview, setDropPreview] = useState<DropPreview | null>(null);
@@ -46,6 +58,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const nQRef = useRef(nQ);
   const nSRef = useRef(nS);
   const classicalRegsRef = useRef(classicalRegs);
+  const customGateDefinitionsRef = useRef(customGateDefinitions);
 
   useEffect(() => {
     elementsRef.current = elements;
@@ -62,6 +75,10 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   useEffect(() => {
     classicalRegsRef.current = classicalRegs;
   }, [classicalRegs]);
+
+  useEffect(() => {
+    customGateDefinitionsRef.current = customGateDefinitions;
+  }, [customGateDefinitions]);
 
   useEffect(() => {
     contRef.current?.focus();
@@ -101,6 +118,25 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     setSelectedIds([]);
   }, []);
 
+  const getPlacementQubits = useCallback(
+    (spec: PaletteDragSpec | CircuitElement, baseQubit: number) => {
+      if ((spec.type === "custom")) {
+        // Custom gates occupy a qubit span, so drag previews and collision checks
+        // need the full footprint instead of just the anchor qubit.
+        const definition = findCustomGateDefinition(spec.classifier, customGateDefinitionsRef.current);
+        const span = customGateSpan(definition);
+        return Array.from({ length: span }, (_, offset) => baseQubit + offset);
+      }
+
+      if ("qubit" in spec) {
+        return [baseQubit];
+      }
+
+      return [baseQubit];
+    },
+    [],
+  );
+
   const buildDropPreview = useCallback(
     (
       hit: ReturnType<typeof resolveCanvasHit>,
@@ -112,25 +148,33 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       }
 
       if (hit.zone === "qubit") {
+        const occupiedQubits = getPlacementQubits(spec, hit.qubit);
+        const withinBounds = occupiedQubits.every((qubit) => qubit >= 0 && qubit < nQRef.current);
+
         if (hit.insertAt != null) {
           return {
             zone: "qubit",
             step: hit.insertAt,
             qubit: hit.qubit,
             insertAt: hit.insertAt,
-            valid: true,
+            qubitSpan: occupiedQubits.length,
+            valid: withinBounds,
           };
         }
 
         const others = draggedId == null
           ? elementsRef.current
           : elementsRef.current.filter((candidate) => candidate.id !== draggedId);
+        const overlaps = occupiedQubits.some((qubit) =>
+          cellTaken(others, hit.step, qubit, customGateDefinitionsRef.current),
+        );
 
         return {
           zone: "qubit",
           step: hit.step,
           qubit: hit.qubit,
-          valid: !cellTaken(others, hit.step, hit.qubit),
+          qubitSpan: occupiedQubits.length,
+          valid: withinBounds && !overlaps,
         };
       }
 
@@ -166,7 +210,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         valid: !alreadyHas,
       };
     },
-    [resolveCanvasHit],
+    [getPlacementQubits, resolveCanvasHit],
   );
 
   const applyQubitDrop = useCallback(
@@ -185,6 +229,14 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
               param: needsParam ? 0 : undefined,
               creg: isMeasurement ? null : undefined,
             }
+          : spec.type === "custom"
+            ? {
+                id: uid(),
+                type: "custom",
+                classifier: spec.classifier,
+                step: newStep,
+                qubit: preview.qubit,
+              }
           : {
               id: uid(),
               type: spec.type,
@@ -279,6 +331,9 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     }
     if (element.type === "swap") {
       return { x: clientX, y: clientY, type: "swap" };
+    }
+    if (element.type === "custom") {
+      return { x: clientX, y: clientY, type: "custom", classifier: element.classifier };
     }
     return { x: clientX, y: clientY, type: "ctrl" };
   }, []);
@@ -453,7 +508,9 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           box.width < 4 && box.height < 4
             ? []
             : elementsRef.current
-                .filter((element) => selectionHitsElement(box, element, nQRef.current))
+                .filter((element) =>
+                  selectionHitsElement(box, element, nQRef.current, customGateDefinitionsRef.current),
+                )
                 .map((element) => element.id);
 
         setSelectedIds(nextSelectedIds);
@@ -520,14 +577,23 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     );
   }, [nQ, setElements]);
 
+  const customGateCreation = useMemo(() => {
+    const selectedElements = elements.filter((element) => selectedIds.includes(element.id));
+    return {
+      selectedElements,
+      ...canCreateCustomGate(selectedElements, elements, customGateDefinitions),
+    };
+  }, [customGateDefinitions, elements, selectedIds]);
+
   const exportJSON = useCallback(() => {
     exportCircuitToFile({
       qubits: nQ,
       steps: nS,
       classicalRegisters: classicalRegs,
+      customGateDefinitions,
       elements,
     });
-  }, [classicalRegs, elements, nQ, nS]);
+  }, [classicalRegs, customGateDefinitions, elements, nQ, nS]);
 
   const importJSON = useCallback(() => {
     const input = document.createElement("input");
@@ -546,6 +612,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           const next = deserializeCircuit(raw);
           setNQ(next.nQ);
           setCregs(next.classicalRegs);
+          setCustomGateDefinitions(next.customGateDefinitions);
           setElements(next.elements);
           setSelectedIds([]);
         } catch {
@@ -560,6 +627,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const clearCircuit = useCallback(() => {
     setElements([]);
     setCregs([]);
+    setCustomGateDefinitions([]);
     setSelectedIds([]);
   }, [setElements]);
 
@@ -668,12 +736,52 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     setParameterModal(null);
   }, [parameterModal, setElements]);
 
+  const createCustomGate = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed || customGateDefinitions.some((definition) => definition.classifier === trimmed)) {
+        return;
+      }
+
+      const selectedElements = elements.filter(
+        (element): element is GroupableElement =>
+          selectedIds.includes(element.id) && isGroupableQuantumElement(element),
+      );
+      const validation = canCreateCustomGate(selectedElements, elements, customGateDefinitions);
+      if (!validation.valid) {
+        return;
+      }
+
+      const definition = buildCustomGateDefinition(trimmed, trimmed, selectedElements, uid());
+      const instanceStep = Math.min(...selectedElements.map((element) => element.step));
+
+      setCustomGateDefinitions((current) => [...current, definition]);
+      setElements((current) => {
+        const remaining = current.filter((element) => !selectedIds.includes(element.id));
+        return [
+          ...remaining,
+          {
+            id: uid(),
+            type: "custom",
+            classifier: definition.classifier,
+            step: instanceStep,
+            qubit: definition.minQubit,
+          },
+        ];
+      });
+      setSelectedIds([]);
+      setCustomGateModal(null);
+    },
+    [customGateDefinitions, elements, selectedIds, setElements],
+  );
+
   return {
     state: {
       nQ,
       nS,
       elements,
       classicalRegs,
+      customGateDefinitions,
       selectedIds,
       selectedCount,
       selectedElement,
@@ -683,6 +791,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       classicalRegisterModalElement,
       conditionModal,
       conditionModalElement,
+      customGateModal,
+      customGateCreation,
       newRegName,
       dragGhost,
       dropPreview,
@@ -697,6 +807,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setParameterModal,
       setClassicalRegisterModal,
       setConditionModal,
+      setCustomGateModal,
       setNewRegName,
       handleKeyDown,
       startCanvasSelection,
@@ -714,6 +825,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       createRegisterAndAssign,
       applyCondition,
       applyParameter,
+      createCustomGate,
       deleteSelected: (id: number) => {
         setElements((current) => current.filter((el) => el.id !== id));
         setSelectedIds([]);

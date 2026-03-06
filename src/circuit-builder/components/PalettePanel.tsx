@@ -1,11 +1,13 @@
 import { CONNECTOR_BLACK, GATE_DEFS, PALETTE_GROUPS, UI_COLORS, gateSupportsParam } from "../constants";
-import type { CircuitElement, ClassicalRegister, PaletteDragSpec } from "../types";
+import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
 import { fmt } from "../utils/layout";
 
 interface PalettePanelProps {
   classicalRegs: ClassicalRegister[];
+  customGateDefinitions: CustomGateDefinition[];
   selectedElement: CircuitElement | null;
   selectedCount: number;
+  customGateCreationError: string | null;
   newRegName: string;
   onNewRegNameChange: (value: string) => void;
   onAddRegister: () => void;
@@ -14,14 +16,17 @@ interface PalettePanelProps {
   onEditSelectedParam: (id: number, value: number) => void;
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
+  onCreateCustomGate: () => void;
   onDeleteSelected: (id: number) => void;
   onDeleteSelectedSet: () => void;
 }
 
 export function PalettePanel({
   classicalRegs,
+  customGateDefinitions,
   selectedElement,
   selectedCount,
+  customGateCreationError,
   newRegName,
   onNewRegNameChange,
   onAddRegister,
@@ -30,10 +35,12 @@ export function PalettePanel({
   onEditSelectedParam,
   onEditSelectedCreg,
   onEditSelectedCondition,
+  onCreateCustomGate,
   onDeleteSelected,
   onDeleteSelectedSet,
 }: PalettePanelProps) {
   const duplicateRegName = classicalRegs.some((reg) => reg.name === newRegName.trim());
+  const canCreateCustomGate = selectedCount > 0 && !customGateCreationError;
 
   return (
     <div
@@ -137,6 +144,55 @@ export function PalettePanel({
             </svg>
             SWAP node
           </button>
+        </div>
+      </div>
+
+      <div>
+        <SectionTitle>Custom Gates</SectionTitle>
+        <div style={{ padding: "8px" }}>
+          <button
+            onClick={onCreateCustomGate}
+            disabled={!canCreateCustomGate}
+            style={{
+              width: "100%",
+              padding: "7px 8px",
+              marginBottom: 8,
+              borderRadius: 4,
+              border: "none",
+              background: UI_COLORS.slate900,
+              color: UI_COLORS.white,
+              cursor: canCreateCustomGate ? "pointer" : "not-allowed",
+              fontSize: 12,
+              fontWeight: 600,
+              opacity: canCreateCustomGate ? 1 : 0.5,
+            }}
+          >
+            + Create from selection
+          </button>
+          {customGateCreationError ? (
+            <div style={{ fontSize: 10, color: UI_COLORS.red600, marginBottom: 8 }}>
+              {customGateCreationError}
+            </div>
+          ) : (
+            <div style={{ fontSize: 10, color: UI_COLORS.slate500, marginBottom: 8 }}>
+              Select one single-column quantum block to create a reusable gate.
+            </div>
+          )}
+          {customGateDefinitions.length === 0 ? (
+            <div style={{ fontSize: 10, color: UI_COLORS.slate400, fontStyle: "italic" }}>No custom gates yet</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {customGateDefinitions.map((definition) => (
+                <button
+                  key={definition.id}
+                  onPointerDown={(event) => onStartPaletteDrag(event, { type: "custom", classifier: definition.classifier })}
+                  style={connectorButtonStyle(CONNECTOR_BLACK)}
+                >
+                  <span style={{ fontFamily: "monospace" }}>{definition.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -319,6 +375,9 @@ function selectedTitle(element: CircuitElement) {
   }
   if (element.type === "swap") {
     return "SWAP node";
+  }
+  if (element.type === "custom") {
+    return `Custom gate: ${element.classifier}`;
   }
   if (element.type === "cctrl") {
     return `Condition: ${element.cregName} ${element.op} ${element.val}`;

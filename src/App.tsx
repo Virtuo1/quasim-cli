@@ -7,6 +7,7 @@ import { PalettePanel } from "./circuit-builder/components/PalettePanel";
 import { StatusBar } from "./circuit-builder/components/StatusBar";
 import { ClassicalRegisterModal } from "./circuit-builder/components/modals/ClassicalRegisterModal";
 import { ConditionModal } from "./circuit-builder/components/modals/ConditionModal";
+import { CustomGateModal } from "./circuit-builder/components/modals/CustomGateModal";
 import { ParameterModal } from "./circuit-builder/components/modals/ParameterModal";
 import { COND_OPS, UI_COLORS } from "./circuit-builder/constants";
 import { useCircuitEditor } from "./circuit-builder/hooks/useCircuitEditor";
@@ -45,8 +46,10 @@ function App() {
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <PalettePanel
           classicalRegs={state.classicalRegs}
+          customGateDefinitions={state.customGateDefinitions}
           selectedElement={state.selectedElement}
           selectedCount={state.selectedCount}
+          customGateCreationError={state.customGateCreation.valid ? null : state.customGateCreation.reason}
           newRegName={state.newRegName}
           onNewRegNameChange={actions.setNewRegName}
           onAddRegister={actions.addRegister}
@@ -55,6 +58,7 @@ function App() {
           onEditSelectedParam={(id, value) => actions.setParameterModal({ id, val: value })}
           onEditSelectedCreg={(elId) => actions.setClassicalRegisterModal({ elId })}
           onEditSelectedCondition={actions.openConditionEditor}
+          onCreateCustomGate={() => actions.setCustomGateModal({})}
           onDeleteSelected={actions.deleteSelected}
           onDeleteSelectedSet={actions.deleteSelectedSet}
         />
@@ -65,6 +69,7 @@ function App() {
           nS={state.nS}
           elements={state.elements}
           classicalRegs={state.classicalRegs}
+          customGateDefinitions={state.customGateDefinitions}
           selectedIds={state.selectedIds}
           draggingId={state.draggingId}
           dropPreview={state.dropPreview}
@@ -110,7 +115,15 @@ function App() {
         onApply={actions.applyCondition}
       />
 
-      <DragGhost ghost={state.dragGhost} />
+      <CustomGateModal
+        modal={state.customGateModal}
+        existingClassifiers={state.customGateDefinitions.map((definition) => definition.classifier)}
+        validationError={state.customGateCreation.valid ? null : state.customGateCreation.reason}
+        onCancel={() => actions.setCustomGateModal(null)}
+        onCreate={actions.createCustomGate}
+      />
+
+      <DragGhost ghost={state.dragGhost} customGateDefinitions={state.customGateDefinitions} />
     </div>
   );
 }

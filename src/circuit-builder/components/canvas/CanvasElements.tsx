@@ -1,5 +1,6 @@
 import { CONNECTOR_BLACK, ERROR_COLORS, GB, UI_COLORS, gateSupportsParam, GATE_DEFS } from "../../constants";
-import type { CircuitElement } from "../../types";
+import type { CircuitElement, CustomGateDefinition } from "../../types";
+import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
 export function ElementNode({
@@ -9,6 +10,7 @@ export function ElementNode({
   inError,
   onPointerDown,
   nQ,
+  customGateDefinitions = [],
 }: {
   element: CircuitElement;
   selected: boolean;
@@ -16,6 +18,7 @@ export function ElementNode({
   inError: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   nQ: number;
+  customGateDefinitions?: CustomGateDefinition[];
 }) {
   const cx = wireX(element.step);
   const errorColor = ERROR_COLORS.primary;
@@ -63,6 +66,25 @@ export function ElementNode({
           {`${element.op} ${element.val}`}
         </text>
         {inError ? <text x={cx + 10} y={cy - 8} fontSize={10} fill={errorColor} fontWeight="bold">!</text> : null}
+      </g>
+    );
+  }
+
+  if (element.type === "custom") {
+    const definition = findCustomGateDefinition(element.classifier, customGateDefinitions);
+    const occupiedQubits = customGateOccupiedQubits(element, definition);
+    const topQubit = Math.min(...occupiedQubits);
+    const bottomQubit = Math.max(...occupiedQubits);
+    const topY = wireY(topQubit) - GB / 2;
+    const bottomY = wireY(bottomQubit) + GB / 2;
+    const boxHeight = bottomY - topY;
+    const fill = selected ? UI_COLORS.amber500 : CONNECTOR_BLACK;
+    return (
+      <g {...ops}>
+        <rect x={cx - 24} y={topY} width={48} height={boxHeight} rx={4} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <text x={cx} y={topY + boxHeight / 2} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={10} fontFamily="monospace" fontWeight={700}>
+          {definition?.label ?? element.classifier}
+        </text>
       </g>
     );
   }

@@ -3,12 +3,14 @@ import type {
   CircuitElement,
   ClassicalRegister,
   ClassicalControlElement,
+  CustomGateDefinition,
   QuantumConnectorLine,
   SerializedCircuit,
   SerializedGate,
   StepAnalysis,
 } from "../types";
 import { cregY, uid, wireY } from "./layout";
+import { customGateOccupiedQubits, deserializeCustomGateDefinitions, serializeCustomGateDefinitions } from "./customGates";
 
 export function compact(elements: CircuitElement[]) {
   if (elements.length === 0) {
@@ -25,20 +27,37 @@ export function compact(elements: CircuitElement[]) {
   return { elements: remapped, nS: Math.max(MIN_STEPS, occupied.length + 1) };
 }
 
-export function cellTaken(elements: CircuitElement[], step: number, qubit: number) {
-  return elements.some((element) => "qubit" in element && element.step === step && element.qubit === qubit);
+export function cellTaken(
+  elements: CircuitElement[],
+  step: number,
+  qubit: number,
+  customGateDefinitions: CustomGateDefinition[] = [],
+) {
+  return elements.some((element) => {
+    if (element.step !== step) {
+      return false;
+    }
+
+    if (element.type === "custom") {
+      const definition = customGateDefinitions.find((candidate) => candidate.classifier === element.classifier);
+      return customGateOccupiedQubits(element, definition).includes(qubit);
+    }
+
+    return "qubit" in element && element.qubit === qubit;
+  });
 }
 
 export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
   const swaps = stepEls.filter((el): el is Extract<CircuitElement, { type: "swap" }> => el.type === "swap");
   const ctrls = stepEls.filter((el): el is Extract<CircuitElement, { type: "ctrl" }> => el.type === "ctrl");
   const gates = stepEls.filter((el): el is Extract<CircuitElement, { type: "gate" }> => el.type === "gate");
+  const customs = stepEls.filter((el): el is Extract<CircuitElement, { type: "custom" }> => el.type === "custom");
   const cctrl = stepEls.filter((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.type === "cctrl");
 
   const swapError = swaps.length !== 0 && swaps.length !== 2;
-  const ctrlOrphan = ctrls.length > 0 && gates.length + swaps.length === 0;
+  const ctrlOrphan = ctrls.length > 0 && gates.length + swaps.length + customs.length === 0;
   const ctrlOnMeas = ctrls.length > 0 && gates.some((gate) => gate.gateType === "M");
-  const cctrlOrphan = cctrl.length > 0 && gates.length + swaps.length === 0;
+  const cctrlOrphan = cctrl.length > 0 && gates.length + swaps.length + customs.length === 0;
   const cctrlMultiple = cctrl.length > 1;
   const measNoReg = gates.some((gate) => gate.gateType === "M" && !gate.creg);
 
@@ -46,6 +65,7 @@ export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
     swaps,
     ctrls,
     gates,
+    customs,
     cctrl,
     swapError,
     ctrlOrphan,
@@ -57,23 +77,39 @@ export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
   };
 }
 
-export function getConnectorLines(stepEls: CircuitElement[]): QuantumConnectorLine[] {
-  const { swaps, ctrls, gates, cctrl, swapError, ctrlOrphan, ctrlOnMeas } = analyzeStep(stepEls);
+export function getConnectorLines(
+  stepEls: CircuitElement[],
+  customGateDefinitions: CustomGateDefinition[] = [],
+): QuantumConnectorLine[] {
+  const { swaps, ctrls, gates, customs, cctrl, swapError, ctrlOrphan, ctrlOnMeas } = analyzeStep(stepEls);
   const lines: QuantumConnectorLine[] = [];
   const hasCctrl = cctrl.length > 0;
 
   if (ctrls.length > 0) {
     const all = [
       ...ctrls,
-      ...stepEls.filter((el): el is Extract<CircuitElement, { type: "gate" | "swap" }> => el.type === "gate" || el.type === "swap"),
+      ...stepEls.filter((el): el is Extract<CircuitElement, { type: "gate" | "swap" | "custom" }> => el.type === "gate" || el.type === "swap" || el.type === "custom"),
     ];
-    const qs = all.map((el) => el.qubit);
+    const qs = all.flatMap((el) => {
+      if (el.type === "custom") {
+        const definition = customGateDefinitions.find((candidate) => candidate.classifier === el.classifier);
+        return customGateOccupiedQubits(el, definition);
+      }
+      return [el.qubit];
+    });
     if (qs.length > 0) {
       const minQ = Math.min(...qs);
       const maxQ = Math.max(...qs);
       const topTargetQ =
         gates.length > 0
           ? Math.min(...gates.map((gate) => gate.qubit))
+          : customs.length > 0
+            ? Math.min(
+                ...customs.map((custom) => {
+                  const definition = customGateDefinitions.find((candidate) => candidate.classifier === custom.classifier);
+                  return Math.min(...customGateOccupiedQubits(custom, definition));
+                }),
+              )
           : swaps.length > 0
             ? Math.min(...swaps.map((swap) => swap.qubit))
             : maxQ;
@@ -113,17 +149,19 @@ export function exportCircuitToFile({
   steps,
   classicalRegisters,
   elements,
+  customGateDefinitions,
 }: {
   qubits: number;
   steps: number;
   classicalRegisters: ClassicalRegister[];
   elements: CircuitElement[];
+  customGateDefinitions: CustomGateDefinition[];
 }) {
   const gates: SerializedGate[] = [];
 
   for (let step = 0; step < steps; step += 1) {
     const stepEls = elements.filter((el) => el.step === step);
-    const { swaps, ctrls, gates: stepGates, cctrl } = analyzeStep(stepEls);
+    const { swaps, ctrls, gates: stepGates, customs, cctrl } = analyzeStep(stepEls);
     const controls = ctrls.map((el) => el.qubit).sort((a, b) => a - b);
     const condition =
       cctrl.length > 0
@@ -140,6 +178,22 @@ export function exportCircuitToFile({
       }
       if (gate.gateType === "M" && gate.creg) {
         op.creg = gate.creg;
+      }
+      if (condition) {
+        op.condition = condition;
+      }
+      gates.push(op);
+    }
+
+    for (const custom of customs) {
+      const op: SerializedGate = {
+        step,
+        type: "CUSTOM",
+        classifier: custom.classifier,
+        qubit: custom.qubit,
+      };
+      if (controls.length) {
+        op.controls = controls;
       }
       if (condition) {
         op.condition = condition;
@@ -167,6 +221,7 @@ export function exportCircuitToFile({
     qubits,
     steps,
     classicalRegisters: classicalRegisters.map((reg) => reg.name),
+    customGates: serializeCustomGateDefinitions(customGateDefinitions),
     gates,
   };
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
@@ -178,6 +233,7 @@ export function exportCircuitToFile({
 }
 
 export function deserializeCircuit(raw: SerializedCircuit) {
+  const customGateDefinitions = deserializeCustomGateDefinitions(raw.customGates, uid);
   const classicalRegs = (raw.classicalRegisters ?? []).map((name) => ({ id: uid(), name }));
   const elements: CircuitElement[] = [];
   const usedCtrls = new Set<string>();
@@ -188,7 +244,15 @@ export function deserializeCircuit(raw: SerializedCircuit) {
       for (const qubit of gate.qubits ?? []) {
         elements.push({ id: uid(), type: "swap", step: gate.step, qubit });
       }
-    } else if (typeof gate.qubit === "number") {
+    } else if (gate.type === "CUSTOM" && typeof gate.qubit === "number" && gate.classifier) {
+      elements.push({
+        id: uid(),
+        type: "custom",
+        classifier: gate.classifier,
+        step: gate.step,
+        qubit: gate.qubit,
+      });
+    } else if (gate.type !== "CUSTOM" && typeof gate.qubit === "number") {
       elements.push({
         id: uid(),
         type: "gate",
@@ -231,6 +295,7 @@ export function deserializeCircuit(raw: SerializedCircuit) {
   return {
     nQ: raw.qubits ?? 4,
     classicalRegs,
+    customGateDefinitions,
     elements,
   };
 }
@@ -252,16 +317,29 @@ export function measurementWireLine(
   };
 }
 
-export function classicalControlWireLine(control: ClassicalControlElement, elements: CircuitElement[], nQ: number) {
+export function classicalControlWireLine(
+  control: ClassicalControlElement,
+  elements: CircuitElement[],
+  nQ: number,
+  customGateDefinitions: CustomGateDefinition[] = [],
+) {
   const stepGates = elements.filter(
-    (el): el is Extract<CircuitElement, { type: "gate" | "swap" }> =>
-      el.step === control.step && (el.type === "gate" || el.type === "swap"),
+    (el): el is Extract<CircuitElement, { type: "gate" | "swap" | "custom" }> =>
+      el.step === control.step && (el.type === "gate" || el.type === "swap" || el.type === "custom"),
   );
   if (stepGates.length === 0) {
     return null;
   }
 
-  const topQ = Math.min(...stepGates.map((el) => el.qubit));
+  const topQ = Math.min(
+    ...stepGates.flatMap((el) => {
+      if (el.type === "custom") {
+        const definition = customGateDefinitions.find((candidate) => candidate.classifier === el.classifier);
+        return customGateOccupiedQubits(el, definition);
+      }
+      return [el.qubit];
+    }),
+  );
   return {
     y1: cregY(control.cregIdx, nQ) - 7,
     y2: wireY(topQ),

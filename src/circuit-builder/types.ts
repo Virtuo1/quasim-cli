@@ -34,6 +34,12 @@ export interface GateElement extends BaseElement {
   creg?: string | null;
 }
 
+export interface CustomGateElement extends BaseElement {
+  type: "custom";
+  classifier: string;
+  qubit: number;
+}
+
 export interface ClassicalControlElement extends BaseElement {
   type: "cctrl";
   cregIdx: number;
@@ -42,7 +48,14 @@ export interface ClassicalControlElement extends BaseElement {
   val: number;
 }
 
-export type CircuitElement = ControlElement | SwapElement | GateElement | ClassicalControlElement;
+export type GroupableElement = ControlElement | SwapElement | GateElement;
+
+export type CircuitElement =
+  | ControlElement
+  | SwapElement
+  | GateElement
+  | CustomGateElement
+  | ClassicalControlElement;
 
 export interface QuantumConnectorLine {
   kind: "quantum";
@@ -55,6 +68,7 @@ export interface StepAnalysis {
   swaps: SwapElement[];
   ctrls: ControlElement[];
   gates: GateElement[];
+  customs: CustomGateElement[];
   cctrl: ClassicalControlElement[];
   swapError: boolean;
   ctrlOrphan: boolean;
@@ -70,7 +84,8 @@ export type StepAnalysisMap = Record<number, StepAnalysis>;
 export type PaletteDragSpec =
   | { type: "ctrl" }
   | { type: "swap" }
-  | { type: "gate"; gateType: GateType };
+  | { type: "gate"; gateType: GateType }
+  | { type: "custom"; classifier: string };
 
 export type DragGhostState = PaletteDragSpec & {
   x: number;
@@ -78,7 +93,7 @@ export type DragGhostState = PaletteDragSpec & {
 };
 
 export type DropPreview =
-  | { zone: "qubit"; step: number; qubit: number; valid: boolean; insertAt?: number }
+  | { zone: "qubit"; step: number; qubit: number; valid: boolean; insertAt?: number; qubitSpan?: number }
   | { zone: "creg"; step: number; cregIdx: number; cregName: string; valid: boolean; insertAt?: number };
 
 export type CanvasHit =
@@ -98,6 +113,10 @@ export interface ConditionModalState {
   elId: number;
 }
 
+export interface CustomGateModalState {
+  suggestedName?: string;
+}
+
 export interface SelectionBox {
   x: number;
   y: number;
@@ -107,12 +126,13 @@ export interface SelectionBox {
 
 export interface SerializedGate {
   step: number;
-  type: GateType | "SWAP";
+  type: GateType | "SWAP" | "CUSTOM";
   qubit?: number;
   qubits?: number[];
   controls?: number[];
   param?: number;
   creg?: string | null;
+  classifier?: string;
   condition?: {
     reg: string;
     op: ConditionOperator;
@@ -120,9 +140,32 @@ export interface SerializedGate {
   } | null;
 }
 
+export interface SerializedCustomGateElement {
+  type: GateType | "SWAP" | "CTRL";
+  qubit?: number;
+  qubits?: number[];
+  param?: number;
+}
+
+export interface SerializedCustomGateDefinition {
+  classifier: string;
+  label: string;
+  elements: SerializedCustomGateElement[];
+}
+
 export interface SerializedCircuit {
   qubits?: number;
   steps?: number;
   classicalRegisters?: string[];
+  customGates?: SerializedCustomGateDefinition[];
   gates?: SerializedGate[];
+}
+
+export interface CustomGateDefinition {
+  id: number;
+  classifier: string;
+  label: string;
+  elements: GroupableElement[];
+  minQubit: number;
+  maxQubit: number;
 }
