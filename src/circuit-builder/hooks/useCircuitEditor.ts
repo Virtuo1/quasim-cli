@@ -11,12 +11,14 @@ import type {
   DropPreview,
   PaletteDragSpec,
   ParameterModalState,
+  SelectionBox,
   SerializedCircuit,
   StepAnalysisMap,
 } from "../types";
 import { analyzeStep, cellTaken, compact, deserializeCircuit, exportCircuitToFile } from "../utils/circuit";
-import { clientToCanvasHit, uid } from "../utils/layout";
+import { clientToCanvasHit, clientToSvgPoint, uid } from "../utils/layout";
 import { gateSupportsParam } from "../constants";
+import { normalizeSelectionBox, selectionHitsElement } from "../components/canvas/selection";
 
 interface UseCircuitEditorArgs {
   svgRef: React.RefObject<SVGSVGElement | null>;
@@ -30,7 +32,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const [elements, setRawElements] = useState<CircuitElement[]>([]);
   const [nS, setNS] = useState(MIN_STEPS);
   const [classicalRegs, setCregs] = useState<ClassicalRegister[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [parameterModal, setParameterModal] = useState<ParameterModalState | null>(null);
   const [classicalRegisterModal, setClassicalRegisterModal] = useState<ClassicalRegisterModalState | null>(null);
   const [conditionModal, setConditionModal] = useState<ConditionModalState | null>(null);
@@ -38,6 +40,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const [dragGhost, setDragGhost] = useState<DragGhostState | null>(null);
   const [dropPreview, setDropPreview] = useState<DropPreview | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
 
   const elementsRef = useRef(elements);
   const nQRef = useRef(nQ);
@@ -92,6 +95,10 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
   const openConditionEditor = useCallback((elId: number) => {
     setConditionModal({ elId });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds([]);
   }, []);
 
   const buildDropPreview = useCallback(
@@ -354,7 +361,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         if (!moving && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 5) {
           moving = true;
           setDraggingId(elementId);
-          setSelectedId(null);
+          clearSelection();
         }
 
         if (!moving) {
@@ -370,7 +377,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         window.removeEventListener("pointerup", onUp);
 
         if (!moving) {
-          setSelectedId((current) => (current === elementId ? null : elementId));
+          setSelectedIds((current) => (current.length === 1 && current[0] === elementId ? [] : [elementId]));
           return;
         }
 
@@ -387,28 +394,76 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [buildDropPreview, createElementGhost, moveExistingElement, resolveCanvasHit],
+    [buildDropPreview, clearSelection, createElementGhost, moveExistingElement, resolveCanvasHit],
   );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (
         (event.key === "Delete" || event.key === "Backspace") &&
-        selectedId &&
+        selectedIds.length > 0 &&
         !classicalRegisterModal &&
         !parameterModal &&
         !conditionModal
       ) {
         event.preventDefault();
-        setElements((current) => current.filter((el) => el.id !== selectedId));
-        setSelectedId(null);
+        setElements((current) => current.filter((el) => !selectedIds.includes(el.id)));
+        setSelectedIds([]);
       }
 
       if (event.key === "Escape") {
-        setSelectedId(null);
+        clearSelection();
       }
     },
-    [classicalRegisterModal, conditionModal, parameterModal, selectedId, setElements],
+    [classicalRegisterModal, clearSelection, conditionModal, parameterModal, selectedIds, setElements],
+  );
+
+  const startCanvasSelection = useCallback(
+    (event: React.PointerEvent<SVGSVGElement>) => {
+      const target = event.target as Element | null;
+      if (target?.closest(".gate-el")) {
+        return;
+      }
+
+      const start = clientToSvgPoint(event.clientX, event.clientY, svgRef.current);
+      if (!start) {
+        clearSelection();
+        return;
+      }
+
+      clearSelection();
+      setSelectionBox({ x: start.x, y: start.y, width: 0, height: 0 });
+
+      const onMove = (moveEvent: PointerEvent) => {
+        const current = clientToSvgPoint(moveEvent.clientX, moveEvent.clientY, svgRef.current);
+        if (!current) {
+          return;
+        }
+
+        setSelectionBox(normalizeSelectionBox(start.x, start.y, current.x, current.y));
+      };
+
+      const onUp = (upEvent: PointerEvent) => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+
+        const end = clientToSvgPoint(upEvent.clientX, upEvent.clientY, svgRef.current);
+        const box = end ? normalizeSelectionBox(start.x, start.y, end.x, end.y) : { x: start.x, y: start.y, width: 0, height: 0 };
+        const nextSelectedIds =
+          box.width < 4 && box.height < 4
+            ? []
+            : elementsRef.current
+                .filter((element) => selectionHitsElement(box, element, nQRef.current))
+                .map((element) => element.id);
+
+        setSelectedIds(nextSelectedIds);
+        setSelectionBox(null);
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [clearSelection, svgRef],
   );
 
   const addRegister = useCallback(() => {
@@ -492,7 +547,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           setNQ(next.nQ);
           setCregs(next.classicalRegs);
           setElements(next.elements);
-          setSelectedId(null);
+          setSelectedIds([]);
         } catch {
           window.alert("Invalid circuit JSON.");
         }
@@ -505,7 +560,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const clearCircuit = useCallback(() => {
     setElements([]);
     setCregs([]);
-    setSelectedId(null);
+    setSelectedIds([]);
   }, [setElements]);
 
   const stepAnalysis = useMemo<StepAnalysisMap>(() => {
@@ -523,9 +578,11 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const selectedElement = useMemo(
-    () => (selectedId ? elements.find((el) => el.id === selectedId) ?? null : null),
-    [elements, selectedId],
+    () => (selectedIds.length === 1 ? elements.find((el) => el.id === selectedIds[0]) ?? null : null),
+    [elements, selectedIds],
   );
+
+  const selectedCount = selectedIds.length;
 
   const parameterModalElement = useMemo(
     () =>
@@ -617,7 +674,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       nS,
       elements,
       classicalRegs,
-      selectedId,
+      selectedIds,
+      selectedCount,
       selectedElement,
       parameterModal,
       parameterModalElement,
@@ -629,16 +687,19 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       dragGhost,
       dropPreview,
       draggingId,
+      selectionBox,
       stepAnalysis,
       errorSteps,
     },
     actions: {
-      setSelectedId,
+      setSelectedIds,
+      clearSelection,
       setParameterModal,
       setClassicalRegisterModal,
       setConditionModal,
       setNewRegName,
       handleKeyDown,
+      startCanvasSelection,
       startPaletteDrag,
       startElementDrag,
       openConditionEditor,
@@ -655,7 +716,11 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       applyParameter,
       deleteSelected: (id: number) => {
         setElements((current) => current.filter((el) => el.id !== id));
-        setSelectedId(null);
+        setSelectedIds([]);
+      },
+      deleteSelectedSet: () => {
+        setElements((current) => current.filter((el) => !selectedIds.includes(el.id)));
+        setSelectedIds([]);
       },
     },
   };

@@ -1,5 +1,5 @@
 import { CH, CREG_GAP, CRH, CW, LW, PX, PY, UI_COLORS } from "../constants";
-import type { CircuitElement, ClassicalRegister, DropPreview, StepAnalysisMap } from "../types";
+import type { CircuitElement, ClassicalRegister, DropPreview, SelectionBox, StepAnalysisMap } from "../types";
 import { getConnectorLines } from "../utils/circuit";
 import { ClassicalControlWires, ClassicalRegisterLines, MeasurementWires, QuantumConnectorLines, QubitWires, StepLabels } from "./canvas/CanvasWires";
 import { DropPreviewOverlay } from "./canvas/DropPreviewOverlay";
@@ -11,9 +11,10 @@ interface CircuitCanvasProps {
   nS: number;
   elements: CircuitElement[];
   classicalRegs: ClassicalRegister[];
-  selectedId: number | null;
+  selectedIds: number[];
   draggingId: number | null;
   dropPreview: DropPreview | null;
+  selectionBox: SelectionBox | null;
   stepAnalysis: StepAnalysisMap;
   onCanvasPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
   onElementPointerDown: (event: React.PointerEvent, id: number) => void;
@@ -25,9 +26,10 @@ export function CircuitCanvas({
   nS,
   elements,
   classicalRegs,
-  selectedId,
+  selectedIds,
   draggingId,
   dropPreview,
+  selectionBox,
   stepAnalysis,
   onCanvasPointerDown,
   onElementPointerDown,
@@ -52,6 +54,18 @@ export function CircuitCanvas({
       >
         <StepLabels count={nS} stepAnalysis={stepAnalysis} />
         <DropPreviewOverlay dropPreview={dropPreview} nQ={nQ} />
+        {selectionBox ? (
+          <rect
+            x={selectionBox.x}
+            y={selectionBox.y}
+            width={selectionBox.width}
+            height={selectionBox.height}
+            fill="rgba(37,99,235,.10)"
+            stroke={UI_COLORS.blue600}
+            strokeWidth={1.5}
+            strokeDasharray="4"
+          />
+        ) : null}
         <QubitWires nQ={nQ} columnCount={nS} />
         <QuantumConnectorLines nS={nS} elements={elements} getConnectorLines={getConnectorLines} />
         <MeasurementWires elements={elements} classicalRegs={classicalRegs} nQ={nQ} />
@@ -71,7 +85,7 @@ export function CircuitCanvas({
               key={element.id}
               element={element}
               nQ={nQ}
-              selected={element.id === selectedId}
+              selected={selectedIds.includes(element.id)}
               dragging={element.id === draggingId}
               inError={inError}
               onPointerDown={(event) => onElementPointerDown(event, element.id)}

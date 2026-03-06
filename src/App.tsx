@@ -46,6 +46,7 @@ function App() {
         <PalettePanel
           classicalRegs={state.classicalRegs}
           selectedElement={state.selectedElement}
+          selectedCount={state.selectedCount}
           newRegName={state.newRegName}
           onNewRegNameChange={actions.setNewRegName}
           onAddRegister={actions.addRegister}
@@ -55,6 +56,7 @@ function App() {
           onEditSelectedCreg={(elId) => actions.setClassicalRegisterModal({ elId })}
           onEditSelectedCondition={actions.openConditionEditor}
           onDeleteSelected={actions.deleteSelected}
+          onDeleteSelectedSet={actions.deleteSelectedSet}
         />
 
         <CircuitCanvas
@@ -63,16 +65,12 @@ function App() {
           nS={state.nS}
           elements={state.elements}
           classicalRegs={state.classicalRegs}
-          selectedId={state.selectedId}
+          selectedIds={state.selectedIds}
           draggingId={state.draggingId}
           dropPreview={state.dropPreview}
+          selectionBox={state.selectionBox}
           stepAnalysis={state.stepAnalysis}
-          onCanvasPointerDown={(event) => {
-            const target = event.target as Element | null;
-            if (!target?.closest(".gate-el")) {
-              actions.setSelectedId(null);
-            }
-          }}
+          onCanvasPointerDown={actions.startCanvasSelection}
           onElementPointerDown={actions.startElementDrag}
         />
       </div>
@@ -82,6 +80,7 @@ function App() {
         nS={state.nS}
         elementCount={state.elements.length}
         selectedElement={state.selectedElement}
+        selectedCount={state.selectedCount}
         dropPreview={state.dropPreview}
         errorSteps={state.errorSteps}
       />

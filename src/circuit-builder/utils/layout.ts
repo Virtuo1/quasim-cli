@@ -88,3 +88,15 @@ export const clientToCanvasHit = (
 
   return null;
 };
+
+export const clientToSvgPoint = (clientX: number, clientY: number, svg: SVGSVGElement | null) => {
+  const rect = svg?.getBoundingClientRect();
+  if (!rect) {
+    return null;
+  }
+
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
+  };
+};

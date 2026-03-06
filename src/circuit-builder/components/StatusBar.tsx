@@ -7,11 +7,12 @@ interface StatusBarProps {
   nS: number;
   elementCount: number;
   selectedElement: CircuitElement | null;
+  selectedCount: number;
   dropPreview: DropPreview | null;
   errorSteps: number;
 }
 
-export function StatusBar({ nQ, nS, elementCount, selectedElement, dropPreview, errorSteps }: StatusBarProps) {
+export function StatusBar({ nQ, nS, elementCount, selectedElement, selectedCount, dropPreview, errorSteps }: StatusBarProps) {
   return (
     <div
       style={{
@@ -31,6 +32,8 @@ export function StatusBar({ nQ, nS, elementCount, selectedElement, dropPreview, 
         style={{
           color: selectedElement
             ? UI_COLORS.yellow400
+            : selectedCount > 1
+              ? UI_COLORS.yellow400
             : dropPreview
               ? dropPreview.valid
                 ? UI_COLORS.green300
@@ -38,7 +41,13 @@ export function StatusBar({ nQ, nS, elementCount, selectedElement, dropPreview, 
               : UI_COLORS.slate400,
         }}
       >
-        {selectedElement ? selectedMessage(selectedElement) : dropPreview ? dropMessage(dropPreview) : "Drag a gate or connector from the palette"}
+        {selectedElement
+          ? selectedMessage(selectedElement)
+          : selectedCount > 1
+            ? `${selectedCount} elements selected`
+            : dropPreview
+              ? dropMessage(dropPreview)
+              : "Drag a gate or connector from the palette"}
       </span>
       {errorSteps > 0 ? (
         <span style={{ color: ERROR_COLORS.muted }}>⚠ {errorSteps} col{errorSteps !== 1 ? "s" : ""} with errors</span>

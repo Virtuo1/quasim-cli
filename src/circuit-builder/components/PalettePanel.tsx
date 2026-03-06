@@ -5,6 +5,7 @@ import { fmt } from "../utils/layout";
 interface PalettePanelProps {
   classicalRegs: ClassicalRegister[];
   selectedElement: CircuitElement | null;
+  selectedCount: number;
   newRegName: string;
   onNewRegNameChange: (value: string) => void;
   onAddRegister: () => void;
@@ -14,11 +15,13 @@ interface PalettePanelProps {
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
   onDeleteSelected: (id: number) => void;
+  onDeleteSelectedSet: () => void;
 }
 
 export function PalettePanel({
   classicalRegs,
   selectedElement,
+  selectedCount,
   newRegName,
   onNewRegNameChange,
   onAddRegister,
@@ -28,6 +31,7 @@ export function PalettePanel({
   onEditSelectedCreg,
   onEditSelectedCondition,
   onDeleteSelected,
+  onDeleteSelectedSet,
 }: PalettePanelProps) {
   const duplicateRegName = classicalRegs.some((reg) => reg.name === newRegName.trim());
 
@@ -222,7 +226,28 @@ export function PalettePanel({
         </div>
       </div>
 
-      {selectedElement ? (
+      {selectedCount > 1 ? (
+        <div
+          style={{
+            margin: 8,
+            padding: 9,
+            background: UI_COLORS.yellow50,
+            border: `1px solid ${UI_COLORS.yellow200}`,
+            borderRadius: 4,
+            fontSize: 11,
+          }}
+        >
+          <div style={{ fontWeight: 700, color: UI_COLORS.yellow800, marginBottom: 3 }}>
+            {selectedCount} elements selected
+          </div>
+          <div style={{ color: UI_COLORS.yellow900, lineHeight: 1.7, marginBottom: 7 }}>
+            Drag on the canvas to marquee-select multiple items, then delete them together.
+          </div>
+          <button onClick={onDeleteSelectedSet} style={actionChipStyle(UI_COLORS.red600, UI_COLORS.rose50, UI_COLORS.red600)}>
+            Delete selected
+          </button>
+        </div>
+      ) : selectedElement ? (
         <SelectedElementCard
           element={selectedElement}
           onEditSelectedParam={onEditSelectedParam}

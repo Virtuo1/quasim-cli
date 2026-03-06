@@ -98,6 +98,13 @@ export interface ConditionModalState {
   elId: number;
 }
 
+export interface SelectionBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface SerializedGate {
   step: number;
   type: GateType | "SWAP";
