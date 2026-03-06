@@ -35,7 +35,7 @@ export function CustomGateModal({
     <ModalFrame width={360}>
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Create Custom Gate</div>
       <div style={{ fontSize: 12, color: UI_COLORS.slate500, marginBottom: 16 }}>
-        Group the current single-column quantum selection into a reusable gate.
+        Group the current quantum selection into a reusable gate.
       </div>
       {validationError ? (
         <div

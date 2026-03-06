@@ -1,6 +1,6 @@
 import { CH, CREG_GAP, CRH, CW, LW, PX, PY, UI_COLORS } from "../constants";
 import type { CircuitElement, ClassicalRegister, CustomGateDefinition, DropPreview, SelectionBox, StepAnalysisMap } from "../types";
-import { getConnectorLines } from "../utils/circuit";
+import { getConnectorLinesWithCustoms } from "../utils/circuit";
 import { ClassicalControlWires, ClassicalRegisterLines, MeasurementWires, QuantumConnectorLines, QubitWires, StepLabels } from "./canvas/CanvasWires";
 import { DropPreviewOverlay } from "./canvas/DropPreviewOverlay";
 import { ElementNode } from "./canvas/CanvasElements";
@@ -69,7 +69,12 @@ export function CircuitCanvas({
           />
         ) : null}
         <QubitWires nQ={nQ} columnCount={nS} />
-        <QuantumConnectorLines nS={nS} elements={elements} customGateDefinitions={customGateDefinitions} getConnectorLines={getConnectorLines} />
+        <QuantumConnectorLines
+          nS={nS}
+          elements={elements}
+          customGateDefinitions={customGateDefinitions}
+          getConnectorLines={getConnectorLinesWithCustoms}
+        />
         <MeasurementWires elements={elements} classicalRegs={classicalRegs} nQ={nQ} />
         <ClassicalRegisterLines classicalRegs={classicalRegs} nQ={nQ} nS={nS} />
         <ClassicalControlWires elements={elements} nQ={nQ} customGateDefinitions={customGateDefinitions} />
@@ -77,7 +82,8 @@ export function CircuitCanvas({
         {elements.map((element) => {
           const analysis = stepAnalysis[element.step];
           const inError =
-            (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnMeas)) ||
+            (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnMeas || analysis.ctrlOnCustom)) ||
+            (element.type === "custom" && analysis.ctrlOnCustom) ||
             (element.type === "swap" && analysis.swapError) ||
             (element.type === "cctrl" && (analysis.cctrlOrphan || analysis.cctrlMultiple)) ||
             (element.type === "gate" && element.gateType === "M" && !element.creg);

@@ -57,6 +57,7 @@ export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
   const swapError = swaps.length !== 0 && swaps.length !== 2;
   const ctrlOrphan = ctrls.length > 0 && gates.length + swaps.length + customs.length === 0;
   const ctrlOnMeas = ctrls.length > 0 && gates.some((gate) => gate.gateType === "M");
+  const ctrlOnCustom = ctrls.length > 0 && customs.length > 0;
   const cctrlOrphan = cctrl.length > 0 && gates.length + swaps.length + customs.length === 0;
   const cctrlMultiple = cctrl.length > 1;
   const measNoReg = gates.some((gate) => gate.gateType === "M" && !gate.creg);
@@ -70,18 +71,23 @@ export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
     swapError,
     ctrlOrphan,
     ctrlOnMeas,
+    ctrlOnCustom,
     cctrlOrphan,
     cctrlMultiple,
     measNoReg,
-    hasError: swapError || ctrlOrphan || ctrlOnMeas || cctrlOrphan || cctrlMultiple || measNoReg,
+    hasError: swapError || ctrlOrphan || ctrlOnMeas || ctrlOnCustom || cctrlOrphan || cctrlMultiple || measNoReg,
   };
 }
 
-export function getConnectorLines(
+export function getConnectorLines(stepEls: CircuitElement[]): QuantumConnectorLine[] {
+  return getConnectorLinesWithCustoms(stepEls);
+}
+
+export function getConnectorLinesWithCustoms(
   stepEls: CircuitElement[],
   customGateDefinitions: CustomGateDefinition[] = [],
 ): QuantumConnectorLine[] {
-  const { swaps, ctrls, gates, customs, cctrl, swapError, ctrlOrphan, ctrlOnMeas } = analyzeStep(stepEls);
+  const { swaps, ctrls, gates, customs, cctrl, swapError, ctrlOrphan, ctrlOnMeas, ctrlOnCustom } = analyzeStep(stepEls);
   const lines: QuantumConnectorLine[] = [];
   const hasCctrl = cctrl.length > 0;
 
@@ -119,7 +125,7 @@ export function getConnectorLines(
           kind: "quantum",
           q1: minQ,
           q2: topTargetQ,
-          error: ctrlOrphan || ctrlOnMeas || swapError,
+          error: ctrlOrphan || ctrlOnMeas || ctrlOnCustom || swapError,
         });
         return lines;
       }
@@ -128,7 +134,7 @@ export function getConnectorLines(
         kind: "quantum",
         q1: minQ,
         q2: maxQ,
-        error: ctrlOrphan || ctrlOnMeas || swapError,
+        error: ctrlOrphan || ctrlOnMeas || ctrlOnCustom || swapError,
       });
     }
   } else if (swaps.length >= 2 && !hasCctrl) {
@@ -161,8 +167,12 @@ export function exportCircuitToFile({
 
   for (let step = 0; step < steps; step += 1) {
     const stepEls = elements.filter((el) => el.step === step);
-    const { swaps, ctrls, gates: stepGates, customs, cctrl } = analyzeStep(stepEls);
-    const controls = ctrls.map((el) => el.qubit).sort((a, b) => a - b);
+    const analysis = analyzeStep(stepEls);
+    const { swaps, ctrls, gates: stepGates, customs, cctrl, ctrlOrphan, ctrlOnMeas, ctrlOnCustom } = analysis;
+    const controls =
+      ctrlOrphan || ctrlOnMeas || ctrlOnCustom
+        ? []
+        : ctrls.map((el) => el.qubit).sort((a, b) => a - b);
     const condition =
       cctrl.length > 0
         ? { reg: cctrl[0].cregName, op: cctrl[0].op, val: cctrl[0].val }

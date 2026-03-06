@@ -73,6 +73,7 @@ export interface StepAnalysis {
   swapError: boolean;
   ctrlOrphan: boolean;
   ctrlOnMeas: boolean;
+  ctrlOnCustom: boolean;
   cctrlOrphan: boolean;
   cctrlMultiple: boolean;
   measNoReg: boolean;
@@ -140,17 +141,18 @@ export interface SerializedGate {
   } | null;
 }
 
-export interface SerializedCustomGateElement {
-  type: GateType | "SWAP" | "CTRL";
+export interface SerializedCustomGateOperation {
+  step: number;
+  type: GateType | "SWAP";
   qubit?: number;
   qubits?: number[];
+  controls?: number[];
   param?: number;
 }
 
 export interface SerializedCustomGateDefinition {
   classifier: string;
-  label: string;
-  elements: SerializedCustomGateElement[];
+  gates: SerializedCustomGateOperation[];
 }
 
 export interface SerializedCircuit {
@@ -164,8 +166,7 @@ export interface SerializedCircuit {
 export interface CustomGateDefinition {
   id: number;
   classifier: string;
-  label: string;
-  elements: GroupableElement[];
+  gates: SerializedCustomGateOperation[];
   minQubit: number;
   maxQubit: number;
 }

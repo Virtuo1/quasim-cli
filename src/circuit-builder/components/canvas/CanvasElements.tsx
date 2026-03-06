@@ -83,7 +83,7 @@ export function ElementNode({
       <g {...ops}>
         <rect x={cx - 24} y={topY} width={48} height={boxHeight} rx={4} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
         <text x={cx} y={topY + boxHeight / 2} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={10} fontFamily="monospace" fontWeight={700}>
-          {definition?.label ?? element.classifier}
+          {definition?.classifier ?? element.classifier}
         </text>
       </g>
     );

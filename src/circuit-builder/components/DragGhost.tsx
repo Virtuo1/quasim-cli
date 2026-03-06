@@ -18,7 +18,7 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
       : ghost.type === "swap"
         ? "×"
         : ghost.type === "custom"
-          ? customGateDefinitions.find((definition) => definition.classifier === ghost.classifier)?.label ?? ghost.classifier
+          ? customGateDefinitions.find((definition) => definition.classifier === ghost.classifier)?.classifier ?? ghost.classifier
           : GATE_DEFS[ghost.gateType].l;
   const color =
     ghost.type === "ctrl"

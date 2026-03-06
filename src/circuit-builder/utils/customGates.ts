@@ -4,7 +4,7 @@ import type {
   CustomGateElement,
   GroupableElement,
   SerializedCustomGateDefinition,
-  SerializedCustomGateElement,
+  SerializedCustomGateOperation,
 } from "../types";
 
 export function isGroupableQuantumElement(element: CircuitElement): element is GroupableElement {
@@ -46,19 +46,20 @@ export function canCreateCustomGate(
     return { valid: false, reason: "Custom gates may only contain quantum gates, controls, and swaps." };
   }
 
-  const steps = new Set(elements.map((element) => element.step));
-  if (steps.size !== 1) {
-    return { valid: false, reason: "Custom gates can only be created from a single column right now." };
+  const relativeOperations = buildRelativeOperations(elements);
+  if ("reason" in relativeOperations) {
+    return { valid: false, reason: relativeOperations.reason };
   }
 
   const selectedIds = new Set(elements.map((element) => element.id));
   const minQubit = Math.min(...elements.map((element) => element.qubit));
   const maxQubit = Math.max(...elements.map((element) => element.qubit));
-  const step = elements[0].step;
+  const steps = new Set(elements.map((element) => element.step));
+
   // Grouping replaces the selection with one tall gate, so any remaining quantum
   // element inside that vertical span would overlap the resulting custom gate.
-  const overlapsRemainingColumn = allElements.some((element) => {
-    if (element.step !== step || selectedIds.has(element.id) || element.type === "cctrl") {
+  const overlapsRemainingBlock = allElements.some((element) => {
+    if (!steps.has(element.step) || selectedIds.has(element.id) || element.type === "cctrl") {
       return false;
     }
 
@@ -67,8 +68,8 @@ export function canCreateCustomGate(
     );
   });
 
-  if (overlapsRemainingColumn) {
-    return { valid: false, reason: "Select the full quantum block in that column before creating a custom gate." };
+  if (overlapsRemainingBlock) {
+    return { valid: false, reason: "Select the full quantum block before creating a custom gate." };
   }
 
   return { valid: true as const };
@@ -76,20 +77,21 @@ export function canCreateCustomGate(
 
 export function buildCustomGateDefinition(
   classifier: string,
-  label: string,
   elements: GroupableElement[],
   id: number,
 ): CustomGateDefinition {
-  const minQubit = Math.min(...elements.map((element) => element.qubit));
-  const maxQubit = Math.max(...elements.map((element) => element.qubit));
+  const gates = buildRelativeOperations(elements);
+  if ("reason" in gates) {
+    throw new Error(gates.reason);
+  }
 
+  const { minQubit, maxQubit } = getOperationQubitBounds(gates);
   return {
     id,
     classifier,
-    label,
+    gates,
     minQubit,
     maxQubit,
-    elements: elements.map((element) => ({ ...element, step: 0, qubit: element.qubit - minQubit })),
   };
 }
 
@@ -119,8 +121,7 @@ export function customGateOccupiedQubits(
 export function serializeCustomGateDefinitions(definitions: CustomGateDefinition[]): SerializedCustomGateDefinition[] {
   return definitions.map((definition) => ({
     classifier: definition.classifier,
-    label: definition.label,
-    elements: definition.elements.map(serializeCustomGateElement),
+    gates: definition.gates,
   }));
 }
 
@@ -129,45 +130,79 @@ export function deserializeCustomGateDefinitions(
   makeId: () => number,
 ): CustomGateDefinition[] {
   return (definitions ?? []).map((definition) => {
-    const groupableElements = definition.elements.flatMap((element) => deserializeCustomGateElement(element, makeId));
-    return buildCustomGateDefinition(definition.classifier, definition.label, groupableElements, makeId());
+    const { minQubit, maxQubit } = getOperationQubitBounds(definition.gates);
+    return {
+      id: makeId(),
+      classifier: definition.classifier,
+      gates: definition.gates,
+      minQubit,
+      maxQubit,
+    };
   });
 }
 
-function serializeCustomGateElement(element: GroupableElement): SerializedCustomGateElement {
-  if (element.type === "ctrl") {
-    return { type: "CTRL", qubit: element.qubit };
+function buildRelativeOperations(
+  elements: GroupableElement[],
+): SerializedCustomGateOperation[] | { reason: string } {
+  const steps = [...new Set(elements.map((element) => element.step))].sort((a, b) => a - b);
+  const minStep = Math.min(...steps);
+  const minQubit = Math.min(...elements.map((element) => element.qubit));
+  const operations: SerializedCustomGateOperation[] = [];
+
+  for (const step of steps) {
+    const stepElements = elements.filter((element) => element.step === step);
+    const ctrls = stepElements.filter(
+      (element): element is Extract<GroupableElement, { type: "ctrl" }> => element.type === "ctrl",
+    );
+    const swaps = stepElements.filter(
+      (element): element is Extract<GroupableElement, { type: "swap" }> => element.type === "swap",
+    );
+    const gates = stepElements.filter(
+      (element): element is Extract<GroupableElement, { type: "gate" }> => element.type === "gate",
+    );
+    const controls = ctrls.map((element) => element.qubit - minQubit).sort((a, b) => a - b);
+    const relativeStep = step - minStep;
+
+    if (ctrls.length > 0 && gates.length + swaps.length === 0) {
+      return { reason: "A custom gate step cannot consist only of control nodes." };
+    }
+
+    if (swaps.length !== 0 && swaps.length !== 2) {
+      return { reason: "A custom gate step must contain either zero or exactly two swap nodes." };
+    }
+
+    for (const gate of gates) {
+      operations.push({
+        step: relativeStep,
+        type: gate.gateType,
+        qubit: gate.qubit - minQubit,
+        param: gate.param,
+        controls: controls.length > 0 ? controls : undefined,
+      });
+    }
+
+    if (swaps.length === 2) {
+      operations.push({
+        step: relativeStep,
+        type: "SWAP",
+        qubits: swaps.map((swap) => swap.qubit - minQubit).sort((a, b) => a - b),
+        controls: controls.length > 0 ? controls : undefined,
+      });
+    }
   }
 
-  if (element.type === "swap") {
-    return { type: "SWAP", qubits: [element.qubit] };
-  }
-
-  return { type: element.gateType, qubit: element.qubit, param: element.param };
+  return operations;
 }
 
-function deserializeCustomGateElement(
-  element: SerializedCustomGateElement,
-  makeId: () => number,
-): GroupableElement[] {
-  if (element.type === "CTRL" && typeof element.qubit === "number") {
-    return [{ id: makeId(), type: "ctrl", step: 0, qubit: element.qubit }];
-  }
+function getOperationQubitBounds(gates: SerializedCustomGateOperation[]) {
+  const qubits = gates.flatMap((gate) => [
+    ...(gate.controls ?? []),
+    ...(typeof gate.qubit === "number" ? [gate.qubit] : []),
+    ...(gate.qubits ?? []),
+  ]);
 
-  if (element.type === "SWAP") {
-    return (element.qubits ?? []).map((qubit) => ({ id: makeId(), type: "swap", step: 0, qubit }));
-  }
-
-  if (element.type !== "CTRL" && typeof element.qubit === "number") {
-    return [{
-      id: makeId(),
-      type: "gate",
-      gateType: element.type,
-      step: 0,
-      qubit: element.qubit,
-      param: element.param,
-    }];
-  }
-
-  return [];
+  return {
+    minQubit: qubits.length > 0 ? Math.min(...qubits) : 0,
+    maxQubit: qubits.length > 0 ? Math.max(...qubits) : 0,
+  };
 }

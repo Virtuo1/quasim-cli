@@ -40,7 +40,7 @@ export function PalettePanel({
   onDeleteSelectedSet,
 }: PalettePanelProps) {
   const duplicateRegName = classicalRegs.some((reg) => reg.name === newRegName.trim());
-  const canCreateCustomGate = selectedCount > 0 && !customGateCreationError;
+  const canCreateCustomGate = selectedCount > 1 && !customGateCreationError;
 
   return (
     <div
@@ -150,34 +150,9 @@ export function PalettePanel({
       <div>
         <SectionTitle>Custom Gates</SectionTitle>
         <div style={{ padding: "8px" }}>
-          <button
-            onClick={onCreateCustomGate}
-            disabled={!canCreateCustomGate}
-            style={{
-              width: "100%",
-              padding: "7px 8px",
-              marginBottom: 8,
-              borderRadius: 4,
-              border: "none",
-              background: UI_COLORS.slate900,
-              color: UI_COLORS.white,
-              cursor: canCreateCustomGate ? "pointer" : "not-allowed",
-              fontSize: 12,
-              fontWeight: 600,
-              opacity: canCreateCustomGate ? 1 : 0.5,
-            }}
-          >
-            + Create from selection
-          </button>
-          {customGateCreationError ? (
-            <div style={{ fontSize: 10, color: UI_COLORS.red600, marginBottom: 8 }}>
-              {customGateCreationError}
-            </div>
-          ) : (
-            <div style={{ fontSize: 10, color: UI_COLORS.slate500, marginBottom: 8 }}>
-              Select one single-column quantum block to create a reusable gate.
-            </div>
-          )}
+          <div style={{ fontSize: 10, color: UI_COLORS.slate500, marginBottom: 8 }}>
+            Reusable grouped gates appear here after you create them from a selection.
+          </div>
           {customGateDefinitions.length === 0 ? (
             <div style={{ fontSize: 10, color: UI_COLORS.slate400, fontStyle: "italic" }}>No custom gates yet</div>
           ) : (
@@ -188,7 +163,7 @@ export function PalettePanel({
                   onPointerDown={(event) => onStartPaletteDrag(event, { type: "custom", classifier: definition.classifier })}
                   style={connectorButtonStyle(CONNECTOR_BLACK)}
                 >
-                  <span style={{ fontFamily: "monospace" }}>{definition.label}</span>
+                  <span style={{ fontFamily: "monospace" }}>{definition.classifier}</span>
                 </button>
               ))}
             </div>
@@ -299,9 +274,16 @@ export function PalettePanel({
           <div style={{ color: UI_COLORS.yellow900, lineHeight: 1.7, marginBottom: 7 }}>
             Drag on the canvas to marquee-select multiple items, then delete them together.
           </div>
-          <button onClick={onDeleteSelectedSet} style={actionChipStyle(UI_COLORS.red600, UI_COLORS.rose50, UI_COLORS.red600)}>
-            Delete selected
-          </button>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            <button onClick={onDeleteSelectedSet} style={actionChipStyle(UI_COLORS.red600, UI_COLORS.rose50, UI_COLORS.red600)}>
+              Delete selected
+            </button>
+            {canCreateCustomGate ? (
+              <button onClick={onCreateCustomGate} style={actionChipStyle(UI_COLORS.slate900, UI_COLORS.white, UI_COLORS.slate900)}>
+                Create group
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : selectedElement ? (
         <SelectedElementCard

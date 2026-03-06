@@ -11,7 +11,6 @@ import type {
   CustomGateModalState,
   DragGhostState,
   DropPreview,
-  GroupableElement,
   PaletteDragSpec,
   ParameterModalState,
   SelectionBox,
@@ -26,6 +25,7 @@ import {
   buildCustomGateDefinition,
   canCreateCustomGate,
   customGateSpan,
+  elementOccupiedQubits,
   findCustomGateDefinition,
   isGroupableQuantumElement,
 } from "../utils/customGates";
@@ -150,6 +150,9 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       if (hit.zone === "qubit") {
         const occupiedQubits = getPlacementQubits(spec, hit.qubit);
         const withinBounds = occupiedQubits.every((qubit) => qubit >= 0 && qubit < nQRef.current);
+        const others = draggedId == null
+          ? elementsRef.current
+          : elementsRef.current.filter((candidate) => candidate.id !== draggedId);
 
         if (hit.insertAt != null) {
           return {
@@ -162,9 +165,6 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           };
         }
 
-        const others = draggedId == null
-          ? elementsRef.current
-          : elementsRef.current.filter((candidate) => candidate.id !== draggedId);
         const overlaps = occupiedQubits.some((qubit) =>
           cellTaken(others, hit.step, qubit, customGateDefinitionsRef.current),
         );
@@ -573,7 +573,11 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
     setNQ(next);
     setElements((current) =>
-      current.filter((el) => (el.type === "cctrl" ? true : el.qubit < next)),
+      // Custom gates can span multiple wires, so qubit removal has to use the
+      // full occupied footprint rather than only the anchor qubit.
+      current.filter((element) =>
+        elementOccupiedQubits(element, customGateDefinitionsRef.current).every((qubit) => qubit < next),
+      ),
     );
   }, [nQ, setElements]);
 
@@ -743,17 +747,16 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         return;
       }
 
-      const selectedElements = elements.filter(
-        (element): element is GroupableElement =>
-          selectedIds.includes(element.id) && isGroupableQuantumElement(element),
-      );
+      const selectedElements = elements.filter((element) => selectedIds.includes(element.id));
       const validation = canCreateCustomGate(selectedElements, elements, customGateDefinitions);
       if (!validation.valid) {
         return;
       }
 
-      const definition = buildCustomGateDefinition(trimmed, trimmed, selectedElements, uid());
-      const instanceStep = Math.min(...selectedElements.map((element) => element.step));
+      const groupableElements = selectedElements.filter(isGroupableQuantumElement);
+
+      const definition = buildCustomGateDefinition(trimmed, groupableElements, uid());
+      const instanceStep = Math.min(...groupableElements.map((element) => element.step));
 
       setCustomGateDefinitions((current) => [...current, definition]);
       setElements((current) => {
