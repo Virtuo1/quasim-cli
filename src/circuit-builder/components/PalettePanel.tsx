@@ -1,5 +1,6 @@
 import { CONNECTOR_BLACK, PALETTE_SECTIONS, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS, unitaryGateSupportsParam } from "../constants";
 import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
+import { describeCondition } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface PalettePanelProps {
@@ -153,9 +154,6 @@ export function PalettePanel({
       <div>
         <SectionTitle>Custom Gates</SectionTitle>
         <div style={{ padding: "8px" }}>
-          <div style={{ fontSize: 10, color: UI_COLORS.slate500, marginBottom: 8 }}>
-            Reusable grouped gates appear here after you create them from a selection.
-          </div>
           {customGateDefinitions.length === 0 ? (
             <div style={{ fontSize: 10, color: UI_COLORS.slate400, fontStyle: "italic" }}>No custom gates yet</div>
           ) : (
@@ -374,7 +372,7 @@ function selectedTitle(element: CircuitElement) {
     return `Custom gate: ${element.classifier}`;
   }
   if (element.type === "cctrl") {
-    return `Condition: ${element.condition.registerName} ${element.condition.operator} ${element.condition.value}`;
+    return `Condition: ${describeCondition(element.condition)}`;
   }
   return "Element";
 }
@@ -385,7 +383,7 @@ function selectedDetails(element: CircuitElement) {
       <>
         reg: <b>{element.condition.registerName}</b>
         <br />
-        condition: <b>{element.condition.registerName} {element.condition.operator} {element.condition.value}</b>
+        condition: <b>{describeCondition(element.condition)}</b>
         <br />
         col {element.step}
       </>

@@ -1,5 +1,6 @@
 import { CONNECTOR_BLACK, ERROR_COLORS, GB, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS, unitaryGateSupportsParam } from "../../constants";
 import type { CircuitElement, CustomGateDefinition } from "../../types";
+import { describeCondition } from "../../utils/conditions";
 import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
@@ -63,7 +64,7 @@ export function ElementNode({
         {selected ? <circle cx={cx} cy={cy} r={12} fill={UI_COLORS.amber500} opacity={0.15} /> : null}
         <circle cx={cx} cy={cy} r={7} fill={color} />
         <text x={cx} y={cy + 17} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={UI_COLORS.slate600} fontWeight={600}>
-          {`${element.condition.operator} ${element.condition.value}`}
+          {describeCondition(element.condition).replace(`${element.condition.registerName} `, "")}
         </text>
         {inError ? <text x={cx + 10} y={cy - 8} fontSize={10} fill={errorColor} fontWeight="bold">!</text> : null}
       </g>

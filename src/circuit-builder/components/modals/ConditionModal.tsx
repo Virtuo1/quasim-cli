@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { UI_COLORS } from "../../constants";
 import type { ClassicalControlElement, ConditionModalState, ConditionOperator } from "../../types";
+import { describeCondition } from "../../utils/conditions";
 import { ModalFrame } from "./ModalFrame";
 
 interface ConditionModalProps {
@@ -50,7 +51,12 @@ export function ConditionModal({ modal, element, operators, onCancel, onApply }:
       <div style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
         Condition:{" "}
         <code style={{ fontFamily: "monospace", color: "#7c3aed" }}>
-          {element.condition.registerName} {op} {val}
+          {describeCondition({
+            kind: "comparison",
+            registerName: element.condition.registerName,
+            operator: op,
+            value: val,
+          })}
         </code>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>

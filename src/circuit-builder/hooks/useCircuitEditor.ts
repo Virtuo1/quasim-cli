@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { COND_OPS, MIN_STEPS, unitaryGateSupportsParam } from "../constants";
+import { COND_OPS, MIN_STEPS } from "../constants";
 import type {
   CircuitElement,
   ClassicalControlElement,
-  ClassicalCondition,
   ClassicalRegister,
   ClassicalRegisterModalState,
   ConditionModalState,
@@ -29,6 +28,8 @@ import {
   findCustomGateDefinition,
   isGroupableQuantumElement,
 } from "../utils/customGates";
+import { createComparisonCondition, rebindConditionRegister, updateComparisonCondition } from "../utils/conditions";
+import { createClassicalControlElement, createDragGhostFromElement, createElementFromPalette } from "./editorHelpers";
 
 interface UseCircuitEditorArgs {
   svgRef: React.RefObject<SVGSVGElement | null>;
@@ -215,48 +216,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
   const applyQubitDrop = useCallback(
     (preview: Extract<DropPreview, { zone: "qubit" }>, spec: PaletteDragSpec) => {
-      const isMeasurement = spec.type === "measurement";
-      const needsParam = spec.type === "unitary" && unitaryGateSupportsParam(spec.kind);
       const newStep = preview.insertAt ?? preview.step;
-      const newElement: CircuitElement =
-        spec.type === "unitary"
-          ? {
-              id: uid(),
-              type: "unitary",
-              kind: spec.kind,
-              step: newStep,
-              qubit: preview.qubit,
-              param: needsParam ? 0 : undefined,
-            }
-          : spec.type === "measurement"
-            ? {
-                id: uid(),
-                type: "measurement",
-                step: newStep,
-                qubit: preview.qubit,
-                registerName: null,
-              }
-            : spec.type === "reset"
-              ? {
-                  id: uid(),
-                  type: "reset",
-                  step: newStep,
-                  qubit: preview.qubit,
-                }
-          : spec.type === "custom"
-            ? {
-                id: uid(),
-                type: "custom",
-                classifier: spec.classifier,
-                step: newStep,
-                qubit: preview.qubit,
-              }
-          : {
-              id: uid(),
-              type: spec.type,
-              step: newStep,
-              qubit: preview.qubit,
-            };
+      const newElement = createElementFromPalette(spec, newStep, preview.qubit);
 
       setElements((current) => {
         // Insertion works by shifting later columns first, then letting compaction normalize indices.
@@ -264,7 +225,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         return [...shifted, newElement];
       });
 
-      if (isMeasurement) {
+      if (newElement.type === "measurement") {
         if (classicalRegsRef.current.length > 0) {
           setElements((current) =>
             current.map((el) =>
@@ -275,7 +236,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           );
         }
         setClassicalRegisterModal({ elId: newElement.id });
-      } else if (needsParam) {
+      } else if (newElement.type === "unitary" && newElement.param != null) {
         setParameterModal({ id: newElement.id, val: 0 });
       }
     },
@@ -284,19 +245,11 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
   const applyCregDrop = useCallback(
     (preview: Extract<DropPreview, { zone: "creg" }>) => {
-      const condition: ClassicalCondition = {
-        kind: "comparison",
-        registerName: preview.cregName,
-        operator: "==",
-        value: 0,
-      };
-      const newElement: ClassicalControlElement = {
-        id: uid(),
-        type: "cctrl",
-        step: preview.insertAt ?? preview.step,
-        cregIdx: preview.cregIdx,
-        condition,
-      };
+      const newElement = createClassicalControlElement(
+        preview.insertAt ?? preview.step,
+        preview.cregIdx,
+        createComparisonCondition(preview.cregName),
+      );
 
       setElements((current) => {
         const shifted = preview.insertAt != null ? insertAtStep(current, preview.insertAt) : current;
@@ -343,25 +296,6 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     [applyCregDrop, applyQubitDrop, buildDropPreview, resolveCanvasHit],
   );
 
-  const createElementGhost = useCallback((element: CircuitElement, clientX: number, clientY: number): DragGhostState => {
-    if (element.type === "unitary") {
-      return { x: clientX, y: clientY, type: "unitary", kind: element.kind };
-    }
-    if (element.type === "measurement") {
-      return { x: clientX, y: clientY, type: "measurement" };
-    }
-    if (element.type === "reset") {
-      return { x: clientX, y: clientY, type: "reset" };
-    }
-    if (element.type === "swap") {
-      return { x: clientX, y: clientY, type: "swap" };
-    }
-    if (element.type === "custom") {
-      return { x: clientX, y: clientY, type: "custom", classifier: element.classifier };
-    }
-    return { x: clientX, y: clientY, type: "ctrl" };
-  }, []);
-
   const moveExistingElement = useCallback(
     (elementId: number, preview: DropPreview) => {
       if (preview.zone === "creg") {
@@ -383,7 +317,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
                 ...movingEl,
                 step: insertStep,
                 cregIdx: preview.cregIdx,
-                condition: { ...movingEl.condition, registerName: preview.cregName },
+                condition: rebindConditionRegister(movingEl.condition, preview.cregName),
               },
             ];
           });
@@ -393,7 +327,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         setElements((current) =>
           current.map((el) =>
             el.id === elementId && el.type === "cctrl"
-              ? { ...el, step: preview.step, cregIdx: preview.cregIdx, condition: { ...el.condition, registerName: preview.cregName } }
+              ? { ...el, step: preview.step, cregIdx: preview.cregIdx, condition: rebindConditionRegister(el.condition, preview.cregName) }
               : el,
           ),
         );
@@ -455,7 +389,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           return;
         }
 
-        setDragGhost(createElementGhost(element, moveEvent.clientX, moveEvent.clientY));
+        setDragGhost(createDragGhostFromElement(element, moveEvent.clientX, moveEvent.clientY));
         setDropPreview(getPreview(moveEvent.clientX, moveEvent.clientY));
       };
 
@@ -481,7 +415,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [buildDropPreview, clearSelection, createElementGhost, moveExistingElement, resolveCanvasHit],
+    [buildDropPreview, clearSelection, moveExistingElement, resolveCanvasHit],
   );
 
   const handleKeyDown = useCallback(
@@ -756,12 +690,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           el.id === conditionModal.elId && el.type === "cctrl"
             ? {
                 ...el,
-                condition: {
-                  kind: "comparison",
-                  registerName: el.condition.registerName,
-                  operator: op,
-                  value: val,
-                },
+                condition: updateComparisonCondition(el.condition, op, val),
               }
             : el,
         ),

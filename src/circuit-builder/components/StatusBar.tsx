@@ -1,5 +1,6 @@
 import { ERROR_COLORS, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS } from "../constants";
 import type { CircuitElement, DropPreview } from "../types";
+import { describeCondition } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface StatusBarProps {
@@ -62,7 +63,7 @@ export function StatusBar({ nQ, nS, elementCount, selectedElement, selectedCount
 
 function selectedMessage(element: CircuitElement) {
   if (element.type === "cctrl") {
-    return `Classical condition · ${element.condition.registerName} ${element.condition.operator} ${element.condition.value} · col ${element.step}`;
+    return `Classical condition · ${describeCondition(element.condition)} · col ${element.step}`;
   }
 
   const label =
