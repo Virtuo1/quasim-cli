@@ -7,6 +7,10 @@ export interface ClassicalRegister {
   name: string;
 }
 
+/**
+ * Circuit elements
+ */
+
 export interface BaseElement {
   id: number;
   step: number;
