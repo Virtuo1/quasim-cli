@@ -25,9 +25,8 @@ export function JumpModal({ modal, element, hoveredStep, onCancel }: JumpModalPr
       <div
         style={{
           position: "absolute",
-          top: 18,
-          left: "50%",
-          transform: "translateX(-50%)",
+          right: 18,
+          bottom: 18,
           background: UI_COLORS.white,
           border: `1px solid ${UI_COLORS.borderLight}`,
           borderRadius: 6,
