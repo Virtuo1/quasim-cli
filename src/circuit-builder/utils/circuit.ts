@@ -39,6 +39,7 @@ export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
   const ctrlOrphan = ctrls.length > 0 && gates.length + swaps.length === 0;
   const ctrlOnMeas = ctrls.length > 0 && gates.some((gate) => gate.gateType === "M");
   const cctrlOrphan = cctrl.length > 0 && gates.length + swaps.length === 0;
+  const cctrlMultiple = cctrl.length > 1;
   const measNoReg = gates.some((gate) => gate.gateType === "M" && !gate.creg);
 
   return {
@@ -50,8 +51,9 @@ export function analyzeStep(stepEls: CircuitElement[]): StepAnalysis {
     ctrlOrphan,
     ctrlOnMeas,
     cctrlOrphan,
+    cctrlMultiple,
     measNoReg,
-    hasError: swapError || ctrlOrphan || ctrlOnMeas || cctrlOrphan || measNoReg,
+    hasError: swapError || ctrlOrphan || ctrlOnMeas || cctrlOrphan || cctrlMultiple || measNoReg,
   };
 }
 

@@ -115,7 +115,7 @@ export function CircuitCanvas({
           const inError =
             (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnMeas)) ||
             (element.type === "swap" && analysis.swapError) ||
-            (element.type === "cctrl" && analysis.cctrlOrphan) ||
+            (element.type === "cctrl" && (analysis.cctrlOrphan || analysis.cctrlMultiple)) ||
             (element.type === "gate" && element.gateType === "M" && !element.creg);
 
           return (
@@ -145,6 +145,22 @@ function DropPreviewOverlay({ dropPreview, nQ }: { dropPreview: DropPreview | nu
   }
 
   if (dropPreview.zone === "qubit") {
+    if (dropPreview.insertAt != null) {
+      return (
+        <rect
+          x={PX + LW + dropPreview.insertAt * CW - 5}
+          y={PY + dropPreview.qubit * CH + 5}
+          width={10}
+          height={CH - 10}
+          rx={3}
+          fill={dropPreview.valid ? "rgba(34,197,94,.18)" : ERROR_COLORS.previewFill}
+          stroke={dropPreview.valid ? "#16a34a" : ERROR_COLORS.primary}
+          strokeWidth={1.5}
+          strokeDasharray="4"
+        />
+      );
+    }
+
     return (
       <rect
         x={PX + LW + dropPreview.step * CW + 5}
@@ -154,6 +170,22 @@ function DropPreviewOverlay({ dropPreview, nQ }: { dropPreview: DropPreview | nu
         rx={3}
         fill={dropPreview.valid ? "rgba(34,197,94,.12)" : ERROR_COLORS.previewFill}
         stroke={dropPreview.valid ? "#16a34a" : ERROR_COLORS.primary}
+        strokeWidth={1.5}
+        strokeDasharray="4"
+      />
+    );
+  }
+
+  if (dropPreview.insertAt != null) {
+    return (
+      <rect
+        x={PX + LW + dropPreview.insertAt * CW - 5}
+        y={cregY(dropPreview.cregIdx, nQ) - CRH / 2 + 5}
+        width={10}
+        height={CRH - 10}
+        rx={3}
+        fill={dropPreview.valid ? "rgba(124,58,237,.14)" : ERROR_COLORS.previewFill}
+        stroke={dropPreview.valid ? "#7c3aed" : ERROR_COLORS.primary}
         strokeWidth={1.5}
         strokeDasharray="4"
       />
@@ -241,7 +273,7 @@ function ClassicalRegLines({
   }
 
   const wireStart = PX + LW;
-  const wireEnd = PX + LW + nS * 64 - 4;
+  const wireEnd = PX + LW + nS * CW - 4;
   return (
     <>
       {classicalRegs.map((reg, index) => {

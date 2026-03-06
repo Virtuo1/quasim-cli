@@ -56,6 +56,7 @@ export interface StepAnalysis {
   ctrlOrphan: boolean;
   ctrlOnMeas: boolean;
   cctrlOrphan: boolean;
+  cctrlMultiple: boolean;
   measNoReg: boolean;
   hasError: boolean;
 }
@@ -73,12 +74,12 @@ export type DragGhostState = PaletteDragSpec & {
 };
 
 export type DropPreview =
-  | { zone: "qubit"; step: number; qubit: number; valid: boolean }
-  | { zone: "creg"; step: number; cregIdx: number; cregName: string; valid: boolean };
+  | { zone: "qubit"; step: number; qubit: number; valid: boolean; insertAt?: number }
+  | { zone: "creg"; step: number; cregIdx: number; cregName: string; valid: boolean; insertAt?: number };
 
 export type CanvasHit =
-  | { zone: "qubit"; step: number; qubit: number }
-  | { zone: "creg"; step: number; cregIdx: number; cregName: string };
+  | { zone: "qubit"; step: number; qubit: number; insertAt?: number }
+  | { zone: "creg"; step: number; cregIdx: number; cregName: string; insertAt?: number };
 
 export interface ParameterModalState {
   id: number;

@@ -78,6 +78,12 @@ function App() {
     [],
   );
 
+  const insertAtStep = useCallback(
+    (current: CircuitElement[], insertStep: number) =>
+      current.map((el) => (el.step >= insertStep ? { ...el, step: el.step + 1 } : el)),
+    [],
+  );
+
   const resolveCanvasHit = useCallback(
     (clientX: number, clientY: number) =>
       clientToCanvasHit(clientX, clientY, {
@@ -126,6 +132,16 @@ function App() {
         }
 
         if (hit.zone === "qubit") {
+          if (hit.insertAt != null) {
+            return {
+              zone: "qubit",
+              step: hit.insertAt,
+              qubit: hit.qubit,
+              insertAt: hit.insertAt,
+              valid: true,
+            };
+          }
+
           return {
             zone: "qubit",
             step: hit.step,
@@ -147,6 +163,7 @@ function App() {
           step: hit.step,
           cregIdx: hit.cregIdx,
           cregName: hit.cregName,
+          insertAt: hit.insertAt,
           valid: !alreadyHas,
         };
       };
@@ -172,7 +189,10 @@ function App() {
               op: "==",
               val: 0,
             };
-            setElements((current) => [...current, newEl]);
+            setElements((current) => {
+              const shifted = preview.insertAt != null ? insertAtStep(current, preview.insertAt) : current;
+              return [...shifted, { ...newEl, step: preview.insertAt ?? preview.step }];
+            });
             openConditionEditor(newEl.id);
           } else {
             const isMeasurement = spec.type === "gate" && spec.gateType === "M";
@@ -183,7 +203,7 @@ function App() {
                     id: uid(),
                     type: "gate",
                     gateType: spec.gateType,
-                    step: preview.step,
+                    step: preview.insertAt ?? preview.step,
                     qubit: preview.qubit,
                     param: needsParam ? 0 : undefined,
                     creg: isMeasurement ? null : undefined,
@@ -191,11 +211,14 @@ function App() {
                 : {
                     id: uid(),
                     type: spec.type,
-                    step: preview.step,
+                    step: preview.insertAt ?? preview.step,
                     qubit: preview.qubit,
                   };
 
-            setElements((current) => [...current, newEl]);
+            setElements((current) => {
+              const shifted = preview.insertAt != null ? insertAtStep(current, preview.insertAt) : current;
+              return [...shifted, newEl];
+            });
 
             if (isMeasurement) {
               if (cregsRef.current.length > 0) {
@@ -221,7 +244,7 @@ function App() {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [openConditionEditor, resolveCanvasHit, setElements],
+    [insertAtStep, openConditionEditor, resolveCanvasHit, setElements],
   );
 
   const startElementDrag = useCallback(
@@ -249,6 +272,17 @@ function App() {
             return null;
           }
 
+          if (hit.insertAt != null) {
+            return {
+              zone: "creg",
+              step: hit.insertAt,
+              cregIdx: hit.cregIdx,
+              cregName: hit.cregName,
+              insertAt: hit.insertAt,
+              valid: true,
+            };
+          }
+
           const others = elementsRef.current.filter((candidate) => candidate.id !== elId);
           const alreadyHas = others.some(
             (candidate) =>
@@ -262,12 +296,23 @@ function App() {
             step: hit.step,
             cregIdx: hit.cregIdx,
             cregName: hit.cregName,
+            insertAt: hit.insertAt,
             valid: !alreadyHas,
           };
         }
 
         if (hit.zone !== "qubit") {
           return null;
+        }
+
+        if (hit.insertAt != null) {
+          return {
+            zone: "qubit",
+            step: hit.insertAt,
+            qubit: hit.qubit,
+            insertAt: hit.insertAt,
+            valid: true,
+          };
         }
 
         const others = elementsRef.current.filter((candidate) => candidate.id !== elId);
@@ -325,21 +370,50 @@ function App() {
         const preview = getPreview(upEvent.clientX, upEvent.clientY);
         if (preview?.valid) {
           if (preview.zone === "creg") {
-            setElements((current) =>
-              current.map((el) =>
-                el.id === elId && el.type === "cctrl"
-                  ? { ...el, step: preview.step, cregIdx: preview.cregIdx, cregName: preview.cregName }
-                  : el,
-              ),
-            );
+            if (preview.insertAt != null) {
+              const insertStep = preview.insertAt;
+              setElements((current) => {
+                const movingEl = current.find((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.id === elId && el.type === "cctrl");
+                if (!movingEl) {
+                  return current;
+                }
+                const others = current.filter((el) => el.id !== elId);
+                const shifted = insertAtStep(others, insertStep);
+                return [
+                  ...shifted,
+                  { ...movingEl, step: insertStep, cregIdx: preview.cregIdx, cregName: preview.cregName },
+                ];
+              });
+            } else {
+              setElements((current) =>
+                current.map((el) =>
+                  el.id === elId && el.type === "cctrl"
+                    ? { ...el, step: preview.step, cregIdx: preview.cregIdx, cregName: preview.cregName }
+                    : el,
+                ),
+              );
+            }
           } else {
-            setElements((current) =>
-              current.map((el) =>
-                el.id === elId && el.type !== "cctrl"
-                  ? { ...el, step: preview.step, qubit: preview.qubit }
-                  : el,
-              ),
-            );
+            if (preview.insertAt != null) {
+              const insertStep = preview.insertAt;
+              setElements((current) => {
+                const movingEl = current.find((el): el is Exclude<CircuitElement, ClassicalControlElement> => el.id === elId && el.type !== "cctrl");
+                if (!movingEl) {
+                  return current;
+                }
+                const others = current.filter((el) => el.id !== elId);
+                const shifted = insertAtStep(others, insertStep);
+                return [...shifted, { ...movingEl, step: insertStep, qubit: preview.qubit }];
+              });
+            } else {
+              setElements((current) =>
+                current.map((el) =>
+                  el.id === elId && el.type !== "cctrl"
+                    ? { ...el, step: preview.step, qubit: preview.qubit }
+                    : el,
+                ),
+              );
+            }
           }
         }
 
@@ -351,7 +425,7 @@ function App() {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [resolveCanvasHit, setElements],
+    [insertAtStep, resolveCanvasHit, setElements],
   );
 
   const addCreg = useCallback(() => {

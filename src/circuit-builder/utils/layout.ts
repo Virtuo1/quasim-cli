@@ -2,6 +2,7 @@ import { CH, CREG_GAP, CRH, CW, LW, PX, PY } from "../constants";
 import type { CanvasHit, ClassicalRegister } from "../types";
 
 let currentId = 0;
+const INSERT_GAP_HITBOX = 10;
 
 export const uid = () => {
   currentId += 1;
@@ -49,15 +50,23 @@ export const clientToCanvasHit = (
 
   const rx = clientX - rect.left - PX - LW;
   const ry = clientY - rect.top - PY;
-  const step = Math.floor(rx / CW);
-
-  if (step < 0 || step >= config.nS) {
+  if (rx < 0 || rx > config.nS * CW + INSERT_GAP_HITBOX) {
     return null;
   }
 
+  const boundaryIndex = Math.round(rx / CW);
+  const insertAt =
+    boundaryIndex >= 0 &&
+    boundaryIndex <= config.nS &&
+    Math.abs(rx - boundaryIndex * CW) <= INSERT_GAP_HITBOX
+      ? boundaryIndex
+      : undefined;
+
+  const step = Math.min(Math.max(Math.floor(rx / CW), 0), config.nS - 1);
+
   const qubit = Math.floor(ry / CH);
   if (qubit >= 0 && qubit < config.nQ) {
-    return { zone: "qubit", step, qubit };
+    return { zone: "qubit", step, qubit, insertAt };
   }
 
   if (config.classicalRegs.length > 0) {
@@ -71,6 +80,7 @@ export const clientToCanvasHit = (
           step,
           cregIdx,
           cregName: config.classicalRegs[cregIdx].name,
+          insertAt,
         };
       }
     }
