@@ -172,7 +172,7 @@ function buildRelativeOperations(
         step: relativeStep,
         type: gate.kind,
         qubit: gate.qubit - minQubit,
-        param: gate.param,
+        params: gate.params,
         controls: controls.length > 0 ? controls : undefined,
       });
     }

@@ -1,4 +1,4 @@
-import { CONNECTOR_BLACK, ERROR_COLORS, GB, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS, unitaryGateSupportsParam } from "../../constants";
+import { CONNECTOR_BLACK, ERROR_COLORS, GB, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS, unitaryGateSupportsParam } from "../../constants";
 import type { CircuitElement, CustomGateDefinition } from "../../types";
 import { describeCondition } from "../../utils/conditions";
 import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
@@ -92,7 +92,7 @@ export function ElementNode({
 
   const cy = wireY(element.qubit);
   if (element.type === "measurement") {
-    const fill = selected ? UI_COLORS.amber500 : SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.color;
+    const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.measurement.color;
     return (
       <g {...ops}>
         <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={inError ? errorColor : fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
@@ -106,19 +106,22 @@ export function ElementNode({
   }
 
   if (element.type === "reset") {
-    const fill = selected ? UI_COLORS.amber500 : SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.color;
+    const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.reset.color;
     return (
       <g {...ops}>
         <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
         <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={12} fontFamily="monospace" fontWeight={700}>
-          {SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.label}
+          {CLASSICAL_OP_DEFS.reset.label}
         </text>
       </g>
     );
   }
 
-  const definition = UNITARY_GATE_DEFS[element.kind];
-  const raw = unitaryGateSupportsParam(element.kind) && element.param != null ? `${definition.label}(${formatAngle(element.param)})` : definition.label;
+  const definition = UNITARY_OP_DEFS[element.kind];
+  const raw =
+    unitaryGateSupportsParam(element.kind) && element.params && element.params.length > 0
+      ? `${definition.label}(${element.params.map((value) => formatAngle(value)).join(",")})`
+      : definition.label;
   const boxWidth = raw.length > 5 ? 56 : GB;
   const fontSize = raw.length > 6 ? 8 : raw.length > 4 ? 10 : 12;
   const fill = selected ? UI_COLORS.amber500 : definition.color;

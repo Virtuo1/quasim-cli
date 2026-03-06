@@ -55,7 +55,7 @@ function App() {
           onAddRegister={actions.addRegister}
           onDeleteRegister={actions.deleteRegister}
           onStartPaletteDrag={actions.startPaletteDrag}
-          onEditSelectedParam={(id, value) => actions.setParameterModal({ id, val: value })}
+          onEditSelectedParam={(id, values) => actions.setParameterModal({ id, values })}
           onEditSelectedCreg={(elId) => actions.setClassicalRegisterModal({ elId })}
           onEditSelectedCondition={actions.openConditionEditor}
           onCreateCustomGate={() => actions.setCustomGateModal({})}
@@ -94,7 +94,7 @@ function App() {
         modal={state.parameterModal}
         element={state.parameterModalElement}
         onCancel={() => actions.setParameterModal(null)}
-        onChange={(value) => actions.setParameterModal((current) => (current ? { ...current, val: value } : current))}
+        onChange={(values) => actions.setParameterModal((current) => (current ? { ...current, values } : current))}
         onApply={actions.applyParameter}
       />
 

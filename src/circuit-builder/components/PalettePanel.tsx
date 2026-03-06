@@ -1,4 +1,4 @@
-import { CONNECTOR_BLACK, PALETTE_SECTIONS, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS, unitaryGateSupportsParam } from "../constants";
+import { CONNECTOR_BLACK, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS, UNITARY_GATE_KINDS, unitaryGateSupportsParam } from "../constants";
 import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
 import { describeCondition } from "../utils/conditions";
 import { fmt } from "../utils/layout";
@@ -14,7 +14,7 @@ interface PalettePanelProps {
   onAddRegister: () => void;
   onDeleteRegister: (id: number) => void;
   onStartPaletteDrag: (event: React.PointerEvent, spec: PaletteDragSpec) => void;
-  onEditSelectedParam: (id: number, value: number) => void;
+  onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
   onCreateCustomGate: () => void;
@@ -65,48 +65,81 @@ export function PalettePanel({
         Drag elements onto the circuit
       </div>
 
-      {PALETTE_SECTIONS.map(({ group, items }) => (
-        <div key={group}>
-          <SectionTitle>{group}</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
-            {items.map((item, index) => {
-              const definition =
-                item.type === "unitary"
-                  ? UNITARY_GATE_DEFS[item.kind]
-                  : SPECIAL_QUBIT_INSTRUCTION_DEFS[item.type];
-              return (
-                <button
-                  key={`${group}-${index}`}
-                  title={definition.description}
-                  onPointerDown={(event) => onStartPaletteDrag(event, item)}
-                  style={{
-                    padding: "5px 2px",
-                    cursor: "grab",
-                    fontFamily: "monospace",
-                    fontWeight: 700,
-                    fontSize: 12,
-                    borderRadius: 3,
-                    background: UI_COLORS.white,
-                    color: definition.color,
-                    border: `1.5px solid ${definition.color}`,
-                    transition: "background .1s,color .1s",
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.background = definition.color;
-                    event.currentTarget.style.color = UI_COLORS.white;
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.background = UI_COLORS.white;
-                    event.currentTarget.style.color = definition.color;
-                  }}
-                >
-                  {definition.label}
-                </button>
-              );
-            })}
-          </div>
+      <div>
+        <SectionTitle>Gates</SectionTitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
+          {UNITARY_GATE_KINDS.map((kind) => {
+            const definition = UNITARY_OP_DEFS[kind];
+            return (
+              <button
+                key={kind}
+                title={definition.description}
+                onPointerDown={(event) => onStartPaletteDrag(event, { type: "unitary", kind })}
+                style={{
+                  padding: "5px 2px",
+                  cursor: "grab",
+                  fontFamily: "monospace",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  borderRadius: 3,
+                  background: UI_COLORS.white,
+                  color: definition.color,
+                  border: `1.5px solid ${definition.color}`,
+                  transition: "background .1s,color .1s",
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.background = definition.color;
+                  event.currentTarget.style.color = UI_COLORS.white;
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.background = UI_COLORS.white;
+                  event.currentTarget.style.color = definition.color;
+                }}
+              >
+                {definition.label}
+              </button>
+            );
+          })}
         </div>
-      ))}
+      </div>
+
+      <div>
+        <SectionTitle>Init / Meas</SectionTitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
+          {(["reset", "measurement"] as const).map((type) => {
+            const definition = CLASSICAL_OP_DEFS[type];
+            return (
+              <button
+                key={type}
+                title={definition.description}
+                onPointerDown={(event) => onStartPaletteDrag(event, { type })}
+                style={{
+                  padding: "5px 2px",
+                  cursor: "grab",
+                  fontFamily: "monospace",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  borderRadius: 3,
+                  background: UI_COLORS.white,
+                  color: definition.color,
+                  border: `1.5px solid ${definition.color}`,
+                  transition: "background .1s,color .1s",
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.background = definition.color;
+                  event.currentTarget.style.color = UI_COLORS.white;
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.background = UI_COLORS.white;
+                  event.currentTarget.style.color = definition.color;
+                }}
+              >
+                {definition.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div>
         <SectionTitle>Connectors</SectionTitle>
@@ -307,7 +340,7 @@ function SelectedElementCard({
   onDeleteSelected,
 }: {
   element: CircuitElement;
-  onEditSelectedParam: (id: number, value: number) => void;
+  onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
   onDeleteSelected: (id: number) => void;
@@ -328,10 +361,10 @@ function SelectedElementCard({
       <div style={{ display: "flex", gap: 4, marginTop: 7, flexWrap: "wrap" }}>
         {element.type === "unitary" && unitaryGateSupportsParam(element.kind) ? (
           <button
-            onClick={() => onEditSelectedParam(element.id, element.param ?? 0)}
+            onClick={() => onEditSelectedParam(element.id, element.params ?? [])}
             style={actionChipStyle("#d97706", UI_COLORS.yellow50, UI_COLORS.amber700)}
           >
-            Edit θ
+            Edit param(s)
           </button>
         ) : null}
         {element.type === "measurement" ? (
@@ -360,13 +393,13 @@ function selectedTitle(element: CircuitElement) {
     return "SWAP node";
   }
   if (element.type === "unitary") {
-    return UNITARY_GATE_DEFS[element.kind].description;
+    return UNITARY_OP_DEFS[element.kind].description;
   }
   if (element.type === "measurement") {
-    return SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.description;
+    return CLASSICAL_OP_DEFS.measurement.description;
   }
   if (element.type === "reset") {
-    return SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.description;
+    return CLASSICAL_OP_DEFS.reset.description;
   }
   if (element.type === "custom") {
     return `Custom gate: ${element.classifier}`;
@@ -393,9 +426,9 @@ function selectedDetails(element: CircuitElement) {
   return (
     <>
       qubit {element.qubit} · col {element.step}
-      {element.type === "unitary" && element.param != null ? (
+      {element.type === "unitary" && element.params && element.params.length > 0 ? (
         <>
-          <br />θ = {fmt(element.param)} rad
+          <br />params = {element.params.map((value) => fmt(value)).join(", ")} rad
         </>
       ) : null}
       {element.type === "measurement" ? (

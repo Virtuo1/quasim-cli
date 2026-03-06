@@ -236,8 +236,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           );
         }
         setClassicalRegisterModal({ elId: newElement.id });
-      } else if (newElement.type === "unitary" && newElement.param != null) {
-        setParameterModal({ id: newElement.id, val: 0 });
+      } else if (newElement.type === "unitary" && newElement.params) {
+        setParameterModal({ id: newElement.id, values: newElement.params });
       }
     },
     [insertAtStep, setElements],
@@ -707,7 +707,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
 
     setElements((current) =>
       current.map((el) =>
-        el.id === parameterModal.id && el.type === "unitary" ? { ...el, param: parameterModal.val } : el,
+        el.id === parameterModal.id && el.type === "unitary" ? { ...el, params: parameterModal.values } : el,
       ),
     );
     setParameterModal(null);

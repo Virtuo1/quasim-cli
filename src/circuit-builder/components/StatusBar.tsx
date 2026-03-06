@@ -1,4 +1,4 @@
-import { ERROR_COLORS, SPECIAL_QUBIT_INSTRUCTION_DEFS, UI_COLORS, UNITARY_GATE_DEFS } from "../constants";
+import { ERROR_COLORS, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS } from "../constants";
 import type { CircuitElement, DropPreview } from "../types";
 import { describeCondition } from "../utils/conditions";
 import { fmt } from "../utils/layout";
@@ -74,11 +74,14 @@ function selectedMessage(element: CircuitElement) {
         : element.type === "custom"
           ? `Custom gate ${element.classifier}`
           : element.type === "measurement"
-            ? SPECIAL_QUBIT_INSTRUCTION_DEFS.measurement.description
+            ? CLASSICAL_OP_DEFS.measurement.description
             : element.type === "reset"
-              ? SPECIAL_QUBIT_INSTRUCTION_DEFS.reset.description
-              : UNITARY_GATE_DEFS[element.kind].description;
-  const angle = element.type === "unitary" && element.param != null ? ` · θ=${fmt(element.param)}` : "";
+              ? CLASSICAL_OP_DEFS.reset.description
+              : UNITARY_OP_DEFS[element.kind].description;
+  const angle =
+    element.type === "unitary" && element.params && element.params.length > 0
+      ? ` · params=${element.params.map((value) => fmt(value)).join(", ")}`
+      : "";
   const measurement =
     element.type === "measurement"
       ? ` · ${element.registerName ? `→ ${element.registerName}` : "⚠ no reg"}`

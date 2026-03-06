@@ -1,11 +1,11 @@
-export interface UnitaryGateDefinition {
+export interface UnitaryOpDef {
   label: string;
   color: string;
   description: string;
-  supportsParameter?: boolean;
+  expectedParameters?: string[];
 }
 
-export interface SpecialQubitInstructionDefinition {
+export interface ClassicalOpDef {
   label: string;
   color: string;
   description: string;
@@ -62,58 +62,35 @@ export const MIN_STEPS = 5;
 
 export const COND_OPS = ["==", "!=", "<", "<=", ">", ">="] as const;
 
-export const UNITARY_GATE_DEFS = {
+export const UNITARY_OP_DEFS = {
   H: { label: "H", color: "#2563EB", description: "Hadamard" },
   X: { label: "X", color: "#DC2626", description: "Pauli-X" },
   Y: { label: "Y", color: "#D97706", description: "Pauli-Y" },
   Z: { label: "Z", color: "#7C3AED", description: "Pauli-Z" },
   S: { label: "S", color: "#059669", description: "S (sqrt(Z))" },
-  T: { label: "T", color: "#0891B2", description: "T (pi/8)" },
-  SDG: { label: "S†", color: "#047857", description: "S-dagger" },
-  TDG: { label: "T†", color: "#0369A1", description: "T-dagger" },
-  SX: { label: "sqrt(X)", color: "#9D174D", description: "sqrt(X) gate" },
-  RX: { label: "Rx", color: "#9F1239", description: "Rx(theta)", supportsParameter: true },
-  RY: { label: "Ry", color: "#C2410C", description: "Ry(theta)", supportsParameter: true },
-  RZ: { label: "Rz", color: "#6D28D9", description: "Rz(theta)", supportsParameter: true },
-  P: { label: "P", color: "#0D9488", description: "Phase(lambda)", supportsParameter: true },
-  U: { label: "U", color: "#475569", description: "Unitary (U)" },
-} as const satisfies Record<string, UnitaryGateDefinition>;
+  RX: { label: "Rx", color: "#9F1239", description: "Rx(ϴ)", expectedParameters: ["ϴ"] },
+  RY: { label: "Ry", color: "#C2410C", description: "Ry(ϴ)", expectedParameters: ["ϴ"] },
+  RZ: { label: "Rz", color: "#6D28D9", description: "Rz(ϴ)", expectedParameters: ["ϴ"] },
+  P: { label: "P", color: "#0D9488", description: "Phase(λ)", expectedParameters: ["λ"] },
+  U: { label: "U", color: "#475569", description: "U(ϴ,φ,λ)", expectedParameters: ["ϴ", "φ", "λ"] },
+} as const satisfies Record<string, UnitaryOpDef>;
 
-export type UnitaryGateKind = keyof typeof UNITARY_GATE_DEFS;
+export type UnitaryGateKind = keyof typeof UNITARY_OP_DEFS;
 
-export const SPECIAL_QUBIT_INSTRUCTION_DEFS = {
+export const CLASSICAL_OP_DEFS = {
   measurement: { label: "M", color: "#1e293b", description: "Measure" },
   reset: { label: "|0⟩", color: "#374151", description: "Reset to |0⟩" },
-} as const satisfies Record<string, SpecialQubitInstructionDefinition>;
+} as const satisfies Record<string, ClassicalOpDef>;
+
+export const unitaryGateExpectedParameters = (kind: UnitaryGateKind) => {
+  const definition = UNITARY_OP_DEFS[kind];
+  return "expectedParameters" in definition ? definition.expectedParameters : undefined;
+};
 
 export const unitaryGateSupportsParam = (kind: UnitaryGateKind) => {
-  const definition = UNITARY_GATE_DEFS[kind];
-  return "supportsParameter" in definition && Boolean(definition.supportsParameter);
+  const expectedParameters = unitaryGateExpectedParameters(kind);
+  return Array.isArray(expectedParameters) && expectedParameters.length > 0;
 };
 
 export const CONNECTOR_BLACK = "#000000";
-
-export const PALETTE_SECTIONS = [
-  { group: "Single-Qubit", items: [
-    { type: "unitary", kind: "H" },
-    { type: "unitary", kind: "X" },
-    { type: "unitary", kind: "Y" },
-    { type: "unitary", kind: "Z" },
-    { type: "unitary", kind: "S" },
-    { type: "unitary", kind: "T" },
-    { type: "unitary", kind: "SDG" },
-    { type: "unitary", kind: "TDG" },
-    { type: "unitary", kind: "SX" },
-  ] },
-  { group: "Rotation", items: [
-    { type: "unitary", kind: "RX" },
-    { type: "unitary", kind: "RY" },
-    { type: "unitary", kind: "RZ" },
-    { type: "unitary", kind: "P" },
-    { type: "unitary", kind: "U" },
-  ] },
-  { group: "Init / Meas", items: [
-    { type: "reset" },
-    { type: "measurement" },
-  ] },
-] as const;
+export const UNITARY_GATE_KINDS = Object.keys(UNITARY_OP_DEFS) as UnitaryGateKind[];

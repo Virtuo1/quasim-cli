@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { UI_COLORS, UNITARY_GATE_DEFS } from "../../constants";
+import { UI_COLORS, UNITARY_OP_DEFS, unitaryGateExpectedParameters } from "../../constants";
 import type { ParameterModalState, UnitaryGateElement } from "../../types";
 import { ModalFrame } from "./ModalFrame";
 
@@ -8,22 +8,23 @@ interface ParameterModalProps {
   modal: ParameterModalState | null;
   element: UnitaryGateElement | null;
   onCancel: () => void;
-  onChange: (value: number) => void;
+  onChange: (values: number[]) => void;
   onApply: () => void;
 }
 
 export function ParameterModal({ modal, element, onCancel, onChange, onApply }: ParameterModalProps) {
-  const [localValue, setLocalValue] = useState(modal?.val ?? 0);
+  const [localValues, setLocalValues] = useState(modal?.values ?? []);
 
   useEffect(() => {
-    setLocalValue(modal?.val ?? 0);
+    setLocalValues(modal?.values ?? []);
   }, [modal]);
 
   if (!modal || !element) {
     return null;
   }
 
-  const def = UNITARY_GATE_DEFS[element.kind];
+  const def = UNITARY_OP_DEFS[element.kind];
+  const parameterLabels = unitaryGateExpectedParameters(element.kind) ?? ["value"];
   const presets = [
     ["π/8", Math.PI / 8],
     ["π/4", Math.PI / 4],
@@ -35,55 +36,72 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
 
   return (
     <ModalFrame width={340}>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{def.description} — θ</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{def.description}</div>
       <div style={{ fontSize: 12, color: UI_COLORS.slate500, marginBottom: 14 }}>Angle in radians</div>
-      <input
-        type="number"
-        step={0.001}
-        value={localValue}
-        autoFocus
-        onChange={(event) => {
-          const next = Number.parseFloat(event.target.value) || 0;
-          setLocalValue(next);
-          onChange(next);
-        }}
-        style={{
-          width: "100%",
-          padding: "7px 9px",
-          border: `1px solid ${UI_COLORS.borderMid}`,
-          borderRadius: 4,
-          fontFamily: "monospace",
-          fontSize: 13,
-          boxSizing: "border-box",
-          marginBottom: 8,
-        }}
-      />
-      <div style={{ fontSize: 11, color: UI_COLORS.slate400, marginBottom: 12 }}>
-        = {(localValue / Math.PI).toFixed(5)} π ≈ {((localValue * 180) / Math.PI).toFixed(3)}°
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+        {parameterLabels.map((parameterLabel, index) => {
+          const localValue = localValues[index] ?? 0;
+          return (
+            <div key={parameterLabel}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: UI_COLORS.slate700, marginBottom: 6 }}>
+                {parameterLabel}
+              </div>
+              <input
+                type="number"
+                step={0.001}
+                value={localValue}
+                autoFocus={index === 0}
+                onChange={(event) => {
+                  const next = Number.parseFloat(event.target.value) || 0;
+                  const nextValues = parameterLabels.map((_, parameterIndex) =>
+                    parameterIndex === index ? next : (localValues[parameterIndex] ?? 0),
+                  );
+                  setLocalValues(nextValues);
+                  onChange(nextValues);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "7px 9px",
+                  border: `1px solid ${UI_COLORS.borderMid}`,
+                  borderRadius: 4,
+                  fontFamily: "monospace",
+                  fontSize: 13,
+                  boxSizing: "border-box",
+                  marginBottom: 6,
+                }}
+              />
+              <div style={{ fontSize: 11, color: UI_COLORS.slate400 }}>
+                = {(localValue / Math.PI).toFixed(5)} π ≈ {((localValue * 180) / Math.PI).toFixed(3)}°
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
-        {presets.map(([label, value]) => (
-          <button
-            key={label}
-            onClick={() => {
-              setLocalValue(value);
-              onChange(value);
-            }}
-            style={{
-              padding: "3px 8px",
-              fontSize: 11,
-              fontFamily: "monospace",
-              border: `1px solid ${UI_COLORS.borderMid}`,
-              borderRadius: 3,
-              cursor: "pointer",
-              background: Math.abs(localValue - value) < 1e-9 ? UI_COLORS.blue600 : UI_COLORS.white,
-              color: Math.abs(localValue - value) < 1e-9 ? UI_COLORS.white : "#374151",
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {parameterLabels.length === 1 ? (
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
+          {presets.map(([label, value]) => (
+            <button
+              key={label}
+              onClick={() => {
+                setLocalValues([value]);
+                onChange([value]);
+              }}
+              style={{
+                padding: "3px 8px",
+                fontSize: 11,
+                fontFamily: "monospace",
+                border: `1px solid ${UI_COLORS.borderMid}`,
+                borderRadius: 3,
+                cursor: "pointer",
+                background: Math.abs((localValues[0] ?? 0) - value) < 1e-9 ? UI_COLORS.blue600 : UI_COLORS.white,
+                color: Math.abs((localValues[0] ?? 0) - value) < 1e-9 ? UI_COLORS.white : "#374151",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button onClick={onCancel} style={secondaryButtonStyle}>
           Cancel

@@ -1,4 +1,4 @@
-import { unitaryGateSupportsParam } from "../constants";
+import { unitaryGateExpectedParameters } from "../constants";
 import type {
   CircuitElement,
   ClassicalControlElement,
@@ -20,7 +20,7 @@ export function createElementFromPalette(
       kind: spec.kind,
       step,
       qubit,
-      param: unitaryGateSupportsParam(spec.kind) ? 0 : undefined,
+      params: unitaryGateExpectedParameters(spec.kind)?.map(() => 0),
     };
   }
 

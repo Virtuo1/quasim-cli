@@ -46,8 +46,8 @@ export function exportCircuitToFile({
       if (controls.length > 0) {
         operation.controls = controls;
       }
-      if (gate.param != null) {
-        operation.param = gate.param;
+      if (gate.params && gate.params.length > 0) {
+        operation.params = gate.params;
       }
       if (condition) {
         operation.condition = condition;
@@ -169,7 +169,7 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         kind: gate.type,
         step: gate.step,
         qubit: gate.qubit,
-        param: gate.param,
+        params: gate.params,
       });
     }
 

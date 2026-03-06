@@ -37,7 +37,7 @@ export interface UnitaryGateElement extends BaseElement {
   type: "unitary";
   qubit: number;
   kind: UnitaryGateKind;
-  param?: number;
+  params?: number[];
 }
 
 export interface MeasurementElement extends BaseElement {
@@ -127,7 +127,7 @@ export type CanvasHit =
 
 export interface ParameterModalState {
   id: number;
-  val: number;
+  values: number[];
 }
 
 export interface ClassicalRegisterModalState {
@@ -155,7 +155,7 @@ export interface SerializedGate {
   qubit?: number;
   qubits?: number[];
   controls?: number[];
-  param?: number;
+  params?: number[];
   creg?: string | null;
   classifier?: string;
   condition?: {
@@ -171,7 +171,7 @@ export interface SerializedCustomGateOperation {
   qubit?: number;
   qubits?: number[];
   controls?: number[];
-  param?: number;
+  params?: number[];
 }
 
 export interface SerializedCustomGateDefinition {
