@@ -106,19 +106,15 @@ export function getConnectorLinesWithCustoms(
     if (qs.length > 0) {
       const minQ = Math.min(...qs);
       const maxQ = Math.max(...qs);
-      const topTargetQ =
-        gates.length > 0
-          ? Math.min(...gates.map((gate) => gate.qubit))
-          : customs.length > 0
-            ? Math.min(
-                ...customs.map((custom) => {
-                  const definition = customGateDefinitions.find((candidate) => candidate.classifier === custom.classifier);
-                  return Math.min(...customGateOccupiedQubits(custom, definition));
-                }),
-              )
-          : swaps.length > 0
-            ? Math.min(...swaps.map((swap) => swap.qubit))
-            : maxQ;
+      const targetQubits = [
+        ...gates.map((gate) => gate.qubit),
+        ...swaps.map((swap) => swap.qubit),
+        ...customs.flatMap((custom) => {
+          const definition = customGateDefinitions.find((candidate) => candidate.classifier === custom.classifier);
+          return customGateOccupiedQubits(custom, definition);
+        }),
+      ];
+      const topTargetQ = targetQubits.length > 0 ? Math.min(...targetQubits) : maxQ;
 
       if (hasCctrl && maxQ > topTargetQ) {
         lines.push({
