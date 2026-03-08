@@ -23,7 +23,11 @@ export function ModalFrame({ children, width }: ModalFrameProps) {
           background: "#fff",
           borderRadius: 6,
           padding: 24,
-          width,
+          width: `min(${width}px, calc(100vw - 32px))`,
+          maxHeight: "calc(100vh - 32px)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
           boxShadow: "0 24px 60px rgba(0,0,0,.3)",
         }}
       >

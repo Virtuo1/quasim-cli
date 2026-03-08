@@ -154,6 +154,36 @@ export function replaceExprKind(expr: Expr, nextKind: Expr["kind"], fallbackRegi
   return next;
 }
 
+export function getExprAtPath(root: Expr, path: string): Expr | null {
+  const segments = parseExprPath(path);
+  let current: Expr = root;
+
+  for (const segment of segments) {
+    if (segment === "expr" && current.kind === "not") {
+      current = current.expr;
+      continue;
+    }
+
+    if ((segment === "left" || segment === "right") && "left" in current) {
+      current = current[segment];
+      continue;
+    }
+
+    return null;
+  }
+
+  return current;
+}
+
+export function updateExprAtPath(root: Expr, path: string, updater: (expr: Expr) => Expr): Expr {
+  const segments = parseExprPath(path);
+  if (segments.length === 0) {
+    return updater(root);
+  }
+
+  return updateExprBySegments(root, segments, updater);
+}
+
 export function validateConditionExpression(expr: Expr): string[] {
   const rootType = inferExprType(expr);
   const issues = validateExpr(expr);
@@ -299,6 +329,39 @@ function collectExprRegisters(expr: Expr, acc: Set<string>) {
     default:
       return;
   }
+}
+
+function parseExprPath(path: string): string[] {
+  return path
+    .split(".")
+    .filter((segment) => segment.length > 0 && segment !== "root");
+}
+
+function updateExprBySegments(root: Expr, segments: string[], updater: (expr: Expr) => Expr): Expr {
+  const [head, ...tail] = segments;
+
+  if (head === "expr" && root.kind === "not") {
+    return {
+      kind: "not",
+      expr: tail.length === 0 ? updater(root.expr) : updateExprBySegments(root.expr, tail, updater),
+    };
+  }
+
+  if ((head === "left" || head === "right") && "left" in root) {
+    return {
+      kind: root.kind,
+      left:
+        head === "left"
+          ? (tail.length === 0 ? updater(root.left) : updateExprBySegments(root.left, tail, updater))
+          : root.left,
+      right:
+        head === "right"
+          ? (tail.length === 0 ? updater(root.right) : updateExprBySegments(root.right, tail, updater))
+          : root.right,
+    };
+  }
+
+  return root;
 }
 
 function replaceRegisterRefs(expr: Expr, fromRegister: string, toRegister: string): Expr {
