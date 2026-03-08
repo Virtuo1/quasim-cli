@@ -11,7 +11,7 @@ import type {
   ResetElement,
   StepAnalysis,
 } from "../types";
-import { exprRegisters } from "./conditions";
+import { exprRegisters, validateConditionExpression } from "./conditions";
 import { cregY, wireY } from "./layout";
 import { customGateOccupiedQubits } from "./customGates";
 
@@ -95,12 +95,15 @@ export function analyzeStep(
   const overlapError = overlapElementIds.length > 0;
   const measurementBitConflictIds = findDuplicateMeasurementTargets(measurements);
   const measurementBitConflict = measurementBitConflictIds.length > 0;
+  const registerWriteConflictIds = findRegisterWriteConflictIds(measurements, assigns);
+  const registerWriteConflict = registerWriteConflictIds.length > 0;
   const jumpMixedColumn =
     jumps.length > 0 &&
     (jumps.length > 1 || stepElements.some((element) => element.type !== "jump" && element.type !== "cctrl"));
   const jumpWithoutTarget = jumps.some((jump) => jump.targetStep == null);
   const cctrlOrphan = cctrl.length > 0 && !hasQuantumTargets;
   const cctrlMultiple = cctrl.length > 1;
+  const conditionInvalid = cctrl.some((control) => validateConditionExpression(control.condition).length > 0);
   const measurementWithoutTarget = measurements.some(
     (measurement) =>
       !measurement.registerName ||
@@ -128,10 +131,13 @@ export function analyzeStep(
     overlapElementIds,
     measurementBitConflict,
     measurementBitConflictIds,
+    registerWriteConflict,
+    registerWriteConflictIds,
     jumpMixedColumn,
     jumpWithoutTarget,
     cctrlOrphan,
     cctrlMultiple,
+    conditionInvalid,
     measurementWithoutTarget,
     assignWithoutRegister,
     hasError:
@@ -141,10 +147,12 @@ export function analyzeStep(
       ctrlOnCustom ||
       overlapError ||
       measurementBitConflict ||
+      registerWriteConflict ||
       jumpMixedColumn ||
       jumpWithoutTarget ||
       cctrlOrphan ||
       cctrlMultiple ||
+      conditionInvalid ||
       measurementWithoutTarget ||
       assignWithoutRegister,
   };
@@ -167,6 +175,38 @@ function findDuplicateMeasurementTargets(measurements: MeasurementElement[]) {
   return Array.from(targets.values())
     .filter((ids) => ids.length > 1)
     .flat();
+}
+
+function findRegisterWriteConflictIds(measurements: MeasurementElement[], assigns: AssignElement[]) {
+  const assignsByRegister = new Map<string, number[]>();
+
+  for (const assign of assigns) {
+    if (!assign.registerName) {
+      continue;
+    }
+
+    const existing = assignsByRegister.get(assign.registerName) ?? [];
+    existing.push(assign.id);
+    assignsByRegister.set(assign.registerName, existing);
+  }
+
+  const conflictingIds = new Set<number>();
+
+  for (const measurement of measurements) {
+    if (!measurement.registerName) {
+      continue;
+    }
+
+    const conflictingAssignIds = assignsByRegister.get(measurement.registerName);
+    if (!conflictingAssignIds) {
+      continue;
+    }
+
+    conflictingIds.add(measurement.id);
+    conflictingAssignIds.forEach((id) => conflictingIds.add(id));
+  }
+
+  return [...conflictingIds];
 }
 
 export function getConnectorLines(stepElements: CircuitElement[]): QuantumConnectorLine[] {

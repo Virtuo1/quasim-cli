@@ -25,6 +25,7 @@ export function ElementNode({
 }) {
   const cx = wireX(element.step);
   const errorColor = ERROR_COLORS.primary;
+  const selectedStrokeColor = inError ? UI_COLORS.amber500 : UI_COLORS.amber700;
   const ops = {
     className: "gate-el",
     style: { cursor: "grab", opacity: dragging ? 0.18 : 1 },
@@ -93,10 +94,10 @@ export function ElementNode({
     const topY = wireY(topQubit) - GB / 2;
     const bottomY = wireY(bottomQubit) + GB / 2;
     const boxHeight = bottomY - topY;
-    const fill = selected ? UI_COLORS.amber500 : CONNECTOR_BLACK;
+    const fill = inError ? errorColor : selected ? UI_COLORS.amber500 : CONNECTOR_BLACK;
     return (
       <g {...ops}>
-        <rect x={cx - 24} y={topY} width={48} height={boxHeight} rx={4} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <rect x={cx - 24} y={topY} width={48} height={boxHeight} rx={4} fill={fill} stroke={selected ? selectedStrokeColor : inError ? errorColor : "none"} strokeWidth={selected || inError ? 2 : 0} />
         <text x={cx} y={topY + boxHeight / 2} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={10} fontFamily="monospace" fontWeight={700}>
           {definition?.classifier ?? element.classifier}
         </text>
@@ -130,7 +131,7 @@ export function ElementNode({
     const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.measurement.color;
     return (
       <g {...ops}>
-        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={inError ? errorColor : fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={inError ? errorColor : fill} stroke={selected ? selectedStrokeColor : inError ? errorColor : "none"} strokeWidth={selected || inError ? 2 : 0} />
         <path d={`M ${cx - 9} ${cy + 4} A 9 9 0 0 1 ${cx + 9} ${cy + 4}`} stroke={UI_COLORS.white} strokeWidth={1.5} fill="none" />
         <line x1={cx} y1={cy + 4} x2={cx + 8} y2={cy - 6} stroke={UI_COLORS.white} strokeWidth={1.5} />
         <text x={cx} y={cy - GB / 2 - 4} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={element.registerName ? UI_COLORS.slate500 : ERROR_COLORS.label}>
@@ -141,10 +142,10 @@ export function ElementNode({
   }
 
   if (element.type === "assign") {
-    const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.assign.color;
+    const fill = inError ? errorColor : selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.assign.color;
     return (
       <g {...ops}>
-        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? selectedStrokeColor : inError ? errorColor : "none"} strokeWidth={selected || inError ? 2 : 0} />
         <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={11} fontFamily="monospace" fontWeight={700}>
           :=
         </text>
@@ -159,10 +160,10 @@ export function ElementNode({
   }
 
   if (element.type === "reset") {
-    const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.reset.color;
+    const fill = inError ? errorColor : selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.reset.color;
     return (
       <g {...ops}>
-        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? selectedStrokeColor : inError ? errorColor : "none"} strokeWidth={selected || inError ? 2 : 0} />
         <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={12} fontFamily="monospace" fontWeight={700}>
           {CLASSICAL_OP_DEFS.reset.label}
         </text>
@@ -177,12 +178,11 @@ export function ElementNode({
       : definition.label;
   const boxWidth = raw.length > 5 ? 56 : GB;
   const fontSize = raw.length > 6 ? 8 : raw.length > 4 ? 10 : 12;
-  const fill = selected ? UI_COLORS.amber500 : definition.color;
-  const stroke = selected ? UI_COLORS.amber700 : "none";
+  const fill = inError ? errorColor : selected ? UI_COLORS.amber500 : definition.color;
 
   return (
     <g {...ops}>
-      <rect x={cx - boxWidth / 2} y={cy - GB / 2} width={boxWidth} height={GB} rx={3} fill={fill} stroke={stroke} strokeWidth={2} />
+      <rect x={cx - boxWidth / 2} y={cy - GB / 2} width={boxWidth} height={GB} rx={3} fill={fill} stroke={selected ? selectedStrokeColor : inError ? errorColor : "none"} strokeWidth={selected || inError ? 2 : 0} />
       <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={fontSize} fontFamily="monospace" fontWeight={700}>
         {raw}
       </text>

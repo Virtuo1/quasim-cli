@@ -38,7 +38,7 @@ export function AssignModal({
       expr={expr}
       classicalRegs={classicalRegs}
       summaryItems={(currentExpr) => [
-        { title: "Assigned Expression", value: (selectedReg || "Unassigned") + "=" + describeExpr(currentExpr) },
+        { title: "Assigned Expression", value: (selectedReg || "Unassigned") + " = " + describeExpr(currentExpr) },
       ]}
       validateExpr={validateExpression}
       applyDisabled={!selectedReg}

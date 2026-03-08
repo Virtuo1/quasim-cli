@@ -379,22 +379,22 @@ function SelectedElementCard({
         ) : null}
         {element.type === "measurement" ? (
           <button onClick={() => onEditSelectedCreg(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
-            Assign reg
+            Edit
           </button>
         ) : null}
         {element.type === "assign" ? (
-          <button onClick={() => onEditSelectedAssign(element.id)} style={actionChipStyle(UI_COLORS.green600, UI_COLORS.panelBg, UI_COLORS.green600)}>
-            Edit assign
+          <button onClick={() => onEditSelectedAssign(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+            Edit
           </button>
         ) : null}
         {element.type === "cctrl" ? (
-          <button onClick={() => onEditSelectedCondition(element.id)} style={actionChipStyle(UI_COLORS.slate700, UI_COLORS.panelBg, "#374151")}>
-            Edit condition
+          <button onClick={() => onEditSelectedCondition(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+            Edit
           </button>
         ) : null}
         {element.type === "jump" ? (
-          <button onClick={() => onEditSelectedJump(element.id)} style={actionChipStyle(UI_COLORS.slate900, UI_COLORS.panelBg, UI_COLORS.slate900)}>
-            Edit target
+          <button onClick={() => onEditSelectedJump(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+            Edit
           </button>
         ) : null}
         <button onClick={() => onDeleteSelected(element.id)} style={actionChipStyle(UI_COLORS.red600, UI_COLORS.rose50, UI_COLORS.red600)}>
@@ -431,7 +431,7 @@ function selectedTitle(element: CircuitElement) {
     return `Custom gate: ${element.classifier}`;
   }
   if (element.type === "cctrl") {
-    return `Condition: ${describeExpr(element.condition)}`;
+    return "Condition";
   }
   return "Element";
 }
@@ -454,7 +454,7 @@ function selectedDetails(element: CircuitElement) {
     return (
       <>
         col {element.step}
-        <br />
+        <hr style={selectionDividerStyle} />
         target: <b>{element.targetStep == null ? <span style={{ color: UI_COLORS.red600 }}>unassigned</span> : `col ${element.targetStep}`}</b>
       </>
     );
@@ -463,14 +463,14 @@ function selectedDetails(element: CircuitElement) {
   return (
     <>
       qubit {element.qubit} · col {element.step}
+      <hr style={selectionDividerStyle} />
       {element.type === "unitary" && element.params && element.params.length > 0 ? (
         <>
-          <br />params = {element.params.map((value) => fmt(value)).join(", ")} rad
+          params = {element.params.map((value) => fmt(value)).join(", ")} rad
         </>
       ) : null}
       {element.type === "measurement" ? (
         <>
-          <br />
           reg: <b>{element.registerName ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
           <br />
           bit: <b>{element.bitIndex ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
@@ -478,7 +478,6 @@ function selectedDetails(element: CircuitElement) {
       ) : null}
       {element.type === "assign" ? (
         <>
-          <br />
           reg: <b>{element.registerName ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
           <br />
           expr: <b>{describeExpr(element.expr)}</b>
@@ -536,3 +535,9 @@ function actionChipStyle(borderColor: string, background: string, color: string)
     borderRadius: 3,
   };
 }
+
+const selectionDividerStyle: React.CSSProperties = {
+  border: "none",
+  borderTop: `1px solid ${UI_COLORS.yellow200}`,
+  margin: "6px 0",
+};

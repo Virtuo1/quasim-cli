@@ -102,10 +102,11 @@ export function CircuitCanvas({
           const inError =
             analysis.overlapElementIds.includes(element.id) ||
             (element.type === "measurement" && analysis.measurementBitConflictIds.includes(element.id)) ||
+            ((element.type === "measurement" || element.type === "assign") && analysis.registerWriteConflictIds.includes(element.id)) ||
             (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnClassicalOp || analysis.ctrlOnCustom)) ||
             (element.type === "custom" && analysis.ctrlOnCustom) ||
             (element.type === "swap" && analysis.swapError) ||
-            (element.type === "cctrl" && (analysis.cctrlOrphan || analysis.cctrlMultiple)) ||
+            (element.type === "cctrl" && (analysis.cctrlOrphan || analysis.cctrlMultiple || analysis.conditionInvalid)) ||
             (element.type === "measurement" && (!element.registerName || element.bitIndex == null)) ||
             (element.type === "assign" && !element.registerName) ||
             (element.type === "jump" && (analysis.jumpMixedColumn || analysis.jumpWithoutTarget));

@@ -79,63 +79,73 @@ export function QuantumConnectorLines({
 }
 
 export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: CircuitElement[]; classicalRegs: ClassicalRegister[]; nQ: number }) {
-  const stepMeasureGroups = new Map<number, Extract<CircuitElement, { type: "measurement" }>[]>();
-  const groupedMeasurementIds = new Set<number>();
+  const stepWriteGroups = new Map<number, Extract<CircuitElement, { type: "measurement" | "assign" }>[]>();
+  const groupedWriteIds = new Set<number>();
 
   elements
-    .filter((element): element is Extract<CircuitElement, { type: "measurement" }> => element.type === "measurement" && !!element.registerName)
+    .filter(
+      (
+        element,
+      ): element is Extract<CircuitElement, { type: "measurement" | "assign" }> =>
+        (element.type === "measurement" || element.type === "assign") && !!element.registerName,
+    )
     .forEach((element) => {
-      const current = stepMeasureGroups.get(element.step) ?? [];
+      const current = stepWriteGroups.get(element.step) ?? [];
       current.push(element);
-      stepMeasureGroups.set(element.step, current);
+      stepWriteGroups.set(element.step, current);
     });
 
   return (
     <>
-      {Array.from(stepMeasureGroups.entries()).map(([step, measurements]) => {
-        if (measurements.length < 2) {
+      {Array.from(stepWriteGroups.entries()).map(([step, writes]) => {
+        if (writes.length < 2) {
           return null;
         }
 
         const hasClassicalControl = elements.some((candidate) => candidate.type === "cctrl" && candidate.step === step);
         const x = wireX(step) + (hasClassicalControl ? 9 : 0);
-        const measurementLines = measurements
-          .map((measurement) => ({ measurement, line: measurementWireLine(measurement, classicalRegs, nQ) }))
+        const writeLines = writes
+          .map((element) => ({ element, line: measurementWireLine(element, classicalRegs, nQ) }))
           .filter(
             (
               entry,
             ): entry is {
-              measurement: Extract<CircuitElement, { type: "measurement" }>;
+              element: Extract<CircuitElement, { type: "measurement" | "assign" }>;
               line: NonNullable<ReturnType<typeof measurementWireLine>>;
             } => entry.line != null,
           )
-          .sort((left, right) => left.measurement.qubit - right.measurement.qubit);
+          .sort((left, right) => left.element.qubit - right.element.qubit);
 
-        if (measurementLines.length < 2) {
+        if (writeLines.length < 2) {
           return null;
         }
 
-        measurementLines.forEach(({ measurement }) => {
-          groupedMeasurementIds.add(measurement.id);
+        writeLines.forEach(({ element }) => {
+          groupedWriteIds.add(element.id);
         });
 
-        const topY = measurementLines[0].line.y1;
+        const topY = writeLines[0].line.y1;
         const registerTargets = new Map<
           string,
           {
             y2: number;
-            label: string;
+            label: string | null;
           }
         >();
 
-        for (const { measurement, line } of measurementLines) {
-          const registerName = measurement.registerName;
+        for (const { element, line } of writeLines) {
+          const registerName = element.registerName;
           if (!registerName) {
             continue;
           }
 
           const current = registerTargets.get(registerName);
-          const nextLabelPart = measurement.bitIndex == null ? "?" : String(measurement.bitIndex);
+          const nextLabelPart =
+            element.type === "measurement"
+              ? element.bitIndex == null
+                ? "?"
+                : String(element.bitIndex)
+              : null;
           if (!current) {
             registerTargets.set(registerName, {
               y2: line.y2,
@@ -146,7 +156,12 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
 
           registerTargets.set(registerName, {
             y2: current.y2,
-            label: `${current.label},${nextLabelPart}`,
+            label:
+              current.label == null
+                ? nextLabelPart
+                : nextLabelPart == null
+                  ? current.label
+                  : `${current.label},${nextLabelPart}`,
           });
         }
 
@@ -169,18 +184,20 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
             {targetEntries.map((target) => (
               <g key={`measurement-column-${step}-target-${target.y2}`}>
                 <polygon points={`${x},${target.y2} ${x - 4},${target.y2 - 8} ${x + 4},${target.y2 - 8}`} fill={UI_COLORS.slate500} />
-                <text
-                  x={x + 8}
-                  y={target.y2 - 4}
-                  textAnchor="start"
-                  dominantBaseline="middle"
-                  fontSize={9}
-                  fontFamily="monospace"
-                  fontWeight={700}
-                  fill={UI_COLORS.slate700}
-                >
-                  {target.label}
-                </text>
+                {target.label ? (
+                  <text
+                    x={x + 8}
+                    y={target.y2 - 4}
+                    textAnchor="start"
+                    dominantBaseline="middle"
+                    fontSize={9}
+                    fontFamily="monospace"
+                    fontWeight={700}
+                    fill={UI_COLORS.slate700}
+                  >
+                    {target.label}
+                  </text>
+                ) : null}
               </g>
             ))}
           </g>
@@ -194,7 +211,7 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
             (el.type === "measurement" || el.type === "assign") && !!el.registerName,
         )
         .map((element) => {
-          if (element.type === "measurement" && groupedMeasurementIds.has(element.id)) {
+          if (groupedWriteIds.has(element.id)) {
             return null;
           }
 
@@ -255,7 +272,7 @@ export function ClassicalControlWires({
             .filter((registerIndex): registerIndex is number => registerIndex >= 0)
             .sort((left, right) => left - right);
           const analysis = stepAnalysis[element.step];
-          const inError = analysis.cctrlOrphan || analysis.cctrlMultiple;
+          const inError = analysis.cctrlOrphan || analysis.cctrlMultiple || analysis.conditionInvalid;
           const selected = selectedIds.includes(element.id);
 
           return (

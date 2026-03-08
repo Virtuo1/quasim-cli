@@ -60,9 +60,9 @@ export function describeExpr(expr: Expr): string {
     case "not":
       return `!${wrapExpr(expr.expr)}`;
     case "and":
-      return `${wrapExpr(expr.left)} && ${wrapExpr(expr.right)}`;
+      return `${wrapExpr(expr.left)} & ${wrapExpr(expr.right)}`;
     case "or":
-      return `${wrapExpr(expr.left)} || ${wrapExpr(expr.right)}`;
+      return `${wrapExpr(expr.left)} | ${wrapExpr(expr.right)}`;
     case "xor":
       return `${wrapExpr(expr.left)} ^ ${wrapExpr(expr.right)}`;
     case "add":
@@ -225,6 +225,12 @@ export function inferExprType(expr: Expr): ExprValueType {
       if (leftType === "int" && rightType === "int") {
         return "int";
       }
+      if (
+        (isDefinitelyIntegerLike(leftType) && rightType === "unknown") ||
+        (leftType === "unknown" && isDefinitelyIntegerLike(rightType))
+      ) {
+        return "numeric";
+      }
       if (leftType === "unknown" && (rightType === "bool" || rightType === "int" || rightType === "unknown")) {
         return rightType;
       }
@@ -315,7 +321,19 @@ function inferNumericResultType(left: Expr, right: Expr): ExprValueType {
   if (leftType === "int" && rightType === "int") {
     return "int";
   }
+  if (
+    leftType === "numeric" ||
+    rightType === "numeric" ||
+    leftType === "unknown" ||
+    rightType === "unknown"
+  ) {
+    return "numeric";
+  }
   return "unknown";
+}
+
+function isDefinitelyIntegerLike(type: ExprValueType) {
+  return type === "int" || type === "numeric";
 }
 
 function collectExprRegisters(expr: Expr, acc: Set<string>) {

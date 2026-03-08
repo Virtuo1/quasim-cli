@@ -651,7 +651,7 @@ function offsetEdges(edges: TreeEdge[], dx: number, dy: number): TreeEdge[] {
 
 const summaryGridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.3fr) minmax(220px, .8fr)",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: 10,
   marginBottom: 12,
 };

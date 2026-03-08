@@ -143,10 +143,13 @@ export interface StepAnalysis {
   overlapElementIds: number[];
   measurementBitConflict: boolean;
   measurementBitConflictIds: number[];
+  registerWriteConflict: boolean;
+  registerWriteConflictIds: number[];
   jumpMixedColumn: boolean;
   jumpWithoutTarget: boolean;
   cctrlOrphan: boolean;
   cctrlMultiple: boolean;
+  conditionInvalid: boolean;
   measurementWithoutTarget: boolean;
   assignWithoutRegister: boolean;
   hasError: boolean;
