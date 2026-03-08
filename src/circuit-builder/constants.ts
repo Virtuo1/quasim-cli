@@ -38,6 +38,7 @@ export const UI_COLORS = {
   yellow400: "#fbbf24",
   yellow800: "#92400e",
   yellow900: "#78350f",
+  green50: "#ecfdf5",
   green300: "#86efac",
   green600: "#16a34a",
   violet600: "#7c3aed",
@@ -80,6 +81,7 @@ export type UnitaryGateKind = keyof typeof UNITARY_OP_DEFS;
 
 export const CLASSICAL_OP_DEFS = {
   measurement: { label: "Measure", color: "#1e293b", description: "Measure" },
+  assign: { label: "Assign", color: "#0f766e", description: "Assign value" },
   reset: { label: "|0⟩", color: "#374151", description: "Reset to |0⟩" },
   jump: { label: "Jump", color: "#000000", description: "Jump to column" },
 } as const satisfies Record<string, ClassicalOpDef>;

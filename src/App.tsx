@@ -5,6 +5,7 @@ import { CircuitCanvas } from "./circuit-builder/components/CircuitCanvas";
 import { DragGhost } from "./circuit-builder/components/DragGhost";
 import { PalettePanel } from "./circuit-builder/components/PalettePanel";
 import { StatusBar } from "./circuit-builder/components/StatusBar";
+import { AssignModal } from "./circuit-builder/components/modals/AssignModal";
 import { ClassicalRegisterModal } from "./circuit-builder/components/modals/ClassicalRegisterModal";
 import { ConditionModal } from "./circuit-builder/components/modals/ConditionModal";
 import { CustomGateModal } from "./circuit-builder/components/modals/CustomGateModal";
@@ -58,6 +59,7 @@ function App() {
           onStartPaletteDrag={actions.startPaletteDrag}
           onEditSelectedParam={(id, values) => actions.setParameterModal({ id, values })}
           onEditSelectedCreg={(elId) => actions.setClassicalRegisterModal({ elId })}
+          onEditSelectedAssign={(elId) => actions.setAssignModal({ elId })}
           onEditSelectedCondition={actions.openConditionEditor}
           onEditSelectedJump={(elId) => actions.openJumpTargetEditor(elId)}
           onCreateCustomGate={() => actions.setCustomGateModal({})}
@@ -109,6 +111,14 @@ function App() {
         onCancel={() => actions.setClassicalRegisterModal(null)}
         onAssign={actions.assignMeasurementRegister}
         onCreateAndAssign={actions.createRegisterAndAssign}
+      />
+
+      <AssignModal
+        modal={state.assignModal}
+        element={state.assignModalElement}
+        classicalRegs={state.classicalRegs}
+        onCancel={() => actions.setAssignModal(null)}
+        onApply={actions.applyAssign}
       />
 
       <ConditionModal

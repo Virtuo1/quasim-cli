@@ -16,6 +16,7 @@ interface PalettePanelProps {
   onStartPaletteDrag: (event: React.PointerEvent, spec: PaletteDragSpec) => void;
   onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
+  onEditSelectedAssign: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
   onEditSelectedJump: (id: number) => void;
   onCreateCustomGate: () => void;
@@ -36,6 +37,7 @@ export function PalettePanel({
   onStartPaletteDrag,
   onEditSelectedParam,
   onEditSelectedCreg,
+  onEditSelectedAssign,
   onEditSelectedCondition,
   onEditSelectedJump,
   onCreateCustomGate,
@@ -326,6 +328,7 @@ export function PalettePanel({
           element={selectedElement}
           onEditSelectedParam={onEditSelectedParam}
           onEditSelectedCreg={onEditSelectedCreg}
+          onEditSelectedAssign={onEditSelectedAssign}
           onEditSelectedCondition={onEditSelectedCondition}
           onEditSelectedJump={onEditSelectedJump}
           onDeleteSelected={onDeleteSelected}
@@ -339,6 +342,7 @@ function SelectedElementCard({
   element,
   onEditSelectedParam,
   onEditSelectedCreg,
+  onEditSelectedAssign,
   onEditSelectedCondition,
   onEditSelectedJump,
   onDeleteSelected,
@@ -346,6 +350,7 @@ function SelectedElementCard({
   element: CircuitElement;
   onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
+  onEditSelectedAssign: (id: number) => void;
   onEditSelectedCondition: (id: number) => void;
   onEditSelectedJump: (id: number) => void;
   onDeleteSelected: (id: number) => void;
@@ -375,6 +380,11 @@ function SelectedElementCard({
         {element.type === "measurement" ? (
           <button onClick={() => onEditSelectedCreg(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
             Assign reg
+          </button>
+        ) : null}
+        {element.type === "assign" ? (
+          <button onClick={() => onEditSelectedAssign(element.id)} style={actionChipStyle(UI_COLORS.green600, UI_COLORS.panelBg, UI_COLORS.green600)}>
+            Edit assign
           </button>
         ) : null}
         {element.type === "cctrl" ? (
@@ -407,6 +417,9 @@ function selectedTitle(element: CircuitElement) {
   }
   if (element.type === "measurement") {
     return CLASSICAL_OP_DEFS.measurement.description;
+  }
+  if (element.type === "assign") {
+    return CLASSICAL_OP_DEFS.assign.description;
   }
   if (element.type === "reset") {
     return CLASSICAL_OP_DEFS.reset.description;
@@ -459,6 +472,14 @@ function selectedDetails(element: CircuitElement) {
         <>
           <br />
           reg: <b>{element.registerName ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
+        </>
+      ) : null}
+      {element.type === "assign" ? (
+        <>
+          <br />
+          reg: <b>{element.registerName ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
+          <br />
+          expr: <b>{describeExpr(element.expr)}</b>
         </>
       ) : null}
     </>

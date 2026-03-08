@@ -21,6 +21,8 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
           ? customGateDefinitions.find((definition) => definition.classifier === ghost.classifier)?.classifier ?? ghost.classifier
           : ghost.type === "measurement"
             ? CLASSICAL_OP_DEFS.measurement.label
+            : ghost.type === "assign"
+              ? CLASSICAL_OP_DEFS.assign.label
             : ghost.type === "reset"
               ? CLASSICAL_OP_DEFS.reset.label
               : ghost.type === "jump"
@@ -35,6 +37,8 @@ export function DragGhost({ ghost, customGateDefinitions = [] }: DragGhostProps)
           ? CONNECTOR_BLACK
           : ghost.type === "measurement"
             ? CLASSICAL_OP_DEFS.measurement.color
+            : ghost.type === "assign"
+              ? CLASSICAL_OP_DEFS.assign.color
             : ghost.type === "reset"
               ? CLASSICAL_OP_DEFS.reset.color
               : ghost.type === "jump"

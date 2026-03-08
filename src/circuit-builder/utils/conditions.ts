@@ -186,11 +186,63 @@ export function updateExprAtPath(root: Expr, path: string, updater: (expr: Expr)
 
 export function validateConditionExpression(expr: Expr): string[] {
   const rootType = inferExprType(expr);
-  const issues = validateExpr(expr);
+  const issues = validateExpression(expr);
   if (rootType !== "bool" && rootType !== "unknown") {
     issues.push("Condition root must evaluate to a boolean value.");
   }
   return issues;
+}
+
+export function validateExpression(expr: Expr): string[] {
+  return validateExpr(expr);
+}
+
+export function inferExprType(expr: Expr): ExprValueType {
+  switch (expr.kind) {
+    case "int":
+      return "int";
+    case "float":
+      return "float";
+    case "bool":
+      return "bool";
+    case "reg":
+      return "unknown";
+    case "not": {
+      const innerType = inferExprType(expr.expr);
+      if (innerType === "bool" || innerType === "int") {
+        return innerType;
+      }
+      return "unknown";
+    }
+    case "and":
+    case "or":
+    case "xor": {
+      const leftType = inferExprType(expr.left);
+      const rightType = inferExprType(expr.right);
+      if (leftType === "bool" && rightType === "bool") {
+        return "bool";
+      }
+      if (leftType === "int" && rightType === "int") {
+        return "int";
+      }
+      if (leftType === "unknown" && (rightType === "bool" || rightType === "int" || rightType === "unknown")) {
+        return rightType;
+      }
+      if (rightType === "unknown" && (leftType === "bool" || leftType === "int" || leftType === "unknown")) {
+        return leftType;
+      }
+      return "unknown";
+    }
+    case "add":
+    case "sub":
+    case "mul":
+    case "div":
+    case "rem":
+      return inferNumericResultType(expr.left, expr.right);
+    case "eq":
+    case "lt":
+      return "bool";
+  }
 }
 
 function validateExpr(expr: Expr): string[] {
@@ -204,7 +256,7 @@ function validateExpr(expr: Expr): string[] {
       break;
     case "not": {
       const innerType = inferExprType(expr.expr);
-      if (innerType === "float") {
+      if (innerType !== "bool" && innerType !== "int" && innerType !== "unknown") {
         issues.push("NOT only supports boolean or integer expressions.");
       }
       issues.push(...validateExpr(expr.expr));
@@ -215,14 +267,12 @@ function validateExpr(expr: Expr): string[] {
     case "xor": {
       const leftType = inferExprType(expr.left);
       const rightType = inferExprType(expr.right);
-      if (
+      const validBitwiseOrBoolean =
         (leftType === "bool" && rightType === "bool") ||
         (leftType === "int" && rightType === "int") ||
-        leftType === "unknown" ||
-        rightType === "unknown"
-      ) {
-        // valid
-      } else {
+        (leftType === "unknown" && (rightType === "bool" || rightType === "int" || rightType === "unknown")) ||
+        (rightType === "unknown" && (leftType === "bool" || leftType === "int" || leftType === "unknown"));
+      if (!validBitwiseOrBoolean) {
         issues.push(`${expr.kind.toUpperCase()} requires matching boolean or integer operands.`);
       }
       issues.push(...validateExpr(expr.left), ...validateExpr(expr.right));
@@ -252,55 +302,20 @@ function validateExpr(expr: Expr): string[] {
   return [...new Set(issues)];
 }
 
-function inferExprType(expr: Expr): ExprValueType {
-  switch (expr.kind) {
-    case "int":
-      return "int";
-    case "float":
-      return "float";
-    case "bool":
-      return "bool";
-    case "reg":
-      return "unknown";
-    case "not": {
-      const innerType = inferExprType(expr.expr);
-      if (innerType === "float") {
-        return "unknown";
-      }
-      return innerType === "unknown" ? "unknown" : innerType === "bool" ? "bool" : "int";
-    }
-    case "and":
-    case "or":
-    case "xor": {
-      const leftType = inferExprType(expr.left);
-      const rightType = inferExprType(expr.right);
-      if (leftType === "bool" && rightType === "bool") {
-        return "bool";
-      }
-      if (leftType === "int" && rightType === "int") {
-        return "int";
-      }
-      return "unknown";
-    }
-    case "add":
-    case "sub":
-    case "mul":
-    case "div":
-    case "rem": {
-      const leftType = inferExprType(expr.left);
-      const rightType = inferExprType(expr.right);
-      if (leftType === "float" || rightType === "float") {
-        return "float";
-      }
-      if (leftType === "int" && rightType === "int") {
-        return "int";
-      }
-      return "unknown";
-    }
-    case "eq":
-    case "lt":
-      return "bool";
+function inferNumericResultType(left: Expr, right: Expr): ExprValueType {
+  const leftType = inferExprType(left);
+  const rightType = inferExprType(right);
+
+  if (leftType === "bool" || rightType === "bool") {
+    return "unknown";
   }
+  if (leftType === "float" || rightType === "float") {
+    return "float";
+  }
+  if (leftType === "int" && rightType === "int") {
+    return "int";
+  }
+  return "unknown";
 }
 
 function collectExprRegisters(expr: Expr, acc: Set<string>) {

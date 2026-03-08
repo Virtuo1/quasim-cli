@@ -82,16 +82,23 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
   return (
     <>
       {elements
-        .filter((el): el is Extract<CircuitElement, { type: "measurement" }> => el.type === "measurement" && !!el.registerName)
+        .filter(
+          (
+            el,
+          ): el is Extract<CircuitElement, { type: "measurement" | "assign" }> =>
+            (el.type === "measurement" || el.type === "assign") && !!el.registerName,
+        )
         .map((element) => {
           const line = measurementWireLine(element, classicalRegs, nQ);
           if (!line) {
             return null;
           }
+          const xOffset = elements.some((candidate) => candidate.type === "cctrl" && candidate.step === element.step) ? 9 : 0;
+          const x = wireX(line.x) + xOffset;
           return (
             <g key={`measurement-wire-${element.id}`}>
-              <line x1={wireX(line.x)} y1={line.y1} x2={wireX(line.x)} y2={line.y2 - 7} stroke={UI_COLORS.slate500} strokeWidth={1} strokeDasharray="4 3" />
-              <polygon points={`${wireX(line.x)},${line.y2} ${wireX(line.x) - 4},${line.y2 - 8} ${wireX(line.x) + 4},${line.y2 - 8}`} fill={UI_COLORS.slate500} />
+              <line x1={x} y1={line.y1} x2={x} y2={line.y2 - 7} stroke={UI_COLORS.slate500} strokeWidth={1} strokeDasharray="4 3" />
+              <polygon points={`${x},${line.y2} ${x - 4},${line.y2 - 8} ${x + 4},${line.y2 - 8}`} fill={UI_COLORS.slate500} />
             </g>
           );
         })}

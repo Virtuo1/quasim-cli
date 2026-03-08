@@ -6,6 +6,7 @@ import type {
   Expr,
   PaletteDragSpec,
 } from "../types";
+import { intExpr } from "../utils/conditions";
 import { uid } from "../utils/layout";
 
 export function createElementFromPalette(
@@ -31,6 +32,17 @@ export function createElementFromPalette(
       step,
       qubit,
       registerName: null,
+    };
+  }
+
+  if (spec.type === "assign") {
+    return {
+      id: uid(),
+      type: "assign",
+      step,
+      qubit,
+      registerName: null,
+      expr: intExpr(0),
     };
   }
 
@@ -94,6 +106,9 @@ export function createDragGhostFromElement(
   }
   if (element.type === "measurement") {
     return { x: clientX, y: clientY, type: "measurement" };
+  }
+  if (element.type === "assign") {
+    return { x: clientX, y: clientY, type: "assign" };
   }
   if (element.type === "reset") {
     return { x: clientX, y: clientY, type: "reset" };

@@ -1,5 +1,6 @@
 import { GB, MIN_STEPS } from "../constants";
 import type {
+  AssignElement,
   CircuitElement,
   ClassicalRegister,
   ClassicalControlElement,
@@ -78,13 +79,14 @@ export function analyzeStep(
   const ctrls = stepElements.filter((element): element is Extract<CircuitElement, { type: "ctrl" }> => element.type === "ctrl");
   const unitaryGates = stepElements.filter((element): element is Extract<CircuitElement, { type: "unitary" }> => element.type === "unitary");
   const measurements = stepElements.filter((element): element is MeasurementElement => element.type === "measurement");
+  const assigns = stepElements.filter((element): element is AssignElement => element.type === "assign");
   const resets = stepElements.filter((element): element is ResetElement => element.type === "reset");
   const jumps = stepElements.filter((element): element is JumpElement => element.type === "jump");
   const customs = stepElements.filter((element): element is Extract<CircuitElement, { type: "custom" }> => element.type === "custom");
   const cctrl = stepElements.filter((element): element is Extract<CircuitElement, { type: "cctrl" }> => element.type === "cctrl");
 
-  const classicalOps = measurements.length + resets.length;
-  const hasQuantumTargets = unitaryGates.length + swaps.length + measurements.length + resets.length + jumps.length + customs.length > 0;
+  const classicalOps = measurements.length + assigns.length + resets.length;
+  const hasQuantumTargets = unitaryGates.length + swaps.length + measurements.length + assigns.length + resets.length + jumps.length + customs.length > 0;
   const swapError = swaps.length !== 0 && swaps.length !== 2;
   const ctrlOrphan = ctrls.length > 0 && !hasQuantumTargets;
   const ctrlOnClassicalOp = ctrls.length > 0 && classicalOps > 0;
@@ -98,12 +100,14 @@ export function analyzeStep(
   const cctrlOrphan = cctrl.length > 0 && !hasQuantumTargets;
   const cctrlMultiple = cctrl.length > 1;
   const measurementWithoutRegister = measurements.some((measurement) => !measurement.registerName);
+  const assignWithoutRegister = assigns.some((assign) => !assign.registerName);
 
   return {
     swaps,
     ctrls,
     unitaryGates,
     measurements,
+    assigns,
     resets,
     jumps,
     customs,
@@ -119,6 +123,7 @@ export function analyzeStep(
     cctrlOrphan,
     cctrlMultiple,
     measurementWithoutRegister,
+    assignWithoutRegister,
     hasError:
       swapError ||
       ctrlOrphan ||
@@ -129,7 +134,8 @@ export function analyzeStep(
       jumpWithoutTarget ||
       cctrlOrphan ||
       cctrlMultiple ||
-      measurementWithoutRegister,
+      measurementWithoutRegister ||
+      assignWithoutRegister,
   };
 }
 
@@ -141,13 +147,13 @@ export function getConnectorLinesWithCustoms(
   stepElements: CircuitElement[],
   customGateDefinitions: CustomGateDefinition[] = [],
 ): QuantumConnectorLine[] {
-  const { swaps, ctrls, unitaryGates, measurements, resets, customs, cctrl, swapError, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom, overlapError } =
+  const { swaps, ctrls, unitaryGates, measurements, assigns, resets, customs, cctrl, swapError, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom, overlapError } =
     analyzeStep(stepElements, customGateDefinitions);
   const lines: QuantumConnectorLine[] = [];
   const hasClassicalControl = cctrl.length > 0;
 
   if (ctrls.length > 0) {
-    const allQuantumNodes = [...ctrls, ...unitaryGates, ...measurements, ...resets, ...swaps, ...customs];
+    const allQuantumNodes = [...ctrls, ...unitaryGates, ...measurements, ...assigns, ...resets, ...swaps, ...customs];
     const occupiedQubits = allQuantumNodes.flatMap((element) => {
       if (element.type === "custom") {
         const definition = customGateDefinitions.find((candidate) => candidate.classifier === element.classifier);
@@ -162,6 +168,7 @@ export function getConnectorLinesWithCustoms(
       const targetQubits = [
         ...unitaryGates.map((gate) => gate.qubit),
         ...measurements.map((measurement) => measurement.qubit),
+        ...assigns.map((assign) => assign.qubit),
         ...resets.map((reset) => reset.qubit),
         ...swaps.map((swap) => swap.qubit),
         ...customs.flatMap((custom) => {
@@ -202,7 +209,7 @@ export function getConnectorLinesWithCustoms(
 }
 
 export function measurementWireLine(
-  measurement: MeasurementElement,
+  measurement: MeasurementElement | AssignElement,
   classicalRegs: ClassicalRegister[],
   nQ: number,
 ) {
@@ -226,10 +233,11 @@ export function classicalControlWireLine(
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
   const stepTargets = elements.filter(
-    (element): element is Extract<CircuitElement, { type: "unitary" | "measurement" | "reset" | "swap" | "jump" | "custom" }> =>
+    (element): element is Extract<CircuitElement, { type: "unitary" | "measurement" | "assign" | "reset" | "swap" | "jump" | "custom" }> =>
       element.step === control.step &&
       (element.type === "unitary" ||
         element.type === "measurement" ||
+        element.type === "assign" ||
         element.type === "reset" ||
         element.type === "swap" ||
         element.type === "jump" ||

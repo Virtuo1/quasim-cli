@@ -106,6 +106,7 @@ export function CircuitCanvas({
             (element.type === "swap" && analysis.swapError) ||
             (element.type === "cctrl" && (analysis.cctrlOrphan || analysis.cctrlMultiple)) ||
             (element.type === "measurement" && !element.registerName) ||
+            (element.type === "assign" && !element.registerName) ||
             (element.type === "jump" && (analysis.jumpMixedColumn || analysis.jumpWithoutTarget));
 
           return (

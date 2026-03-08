@@ -69,6 +69,8 @@ function selectedMessage(element: CircuitElement) {
           ? `Custom gate ${element.classifier}`
           : element.type === "jump"
             ? CLASSICAL_OP_DEFS.jump.description
+          : element.type === "assign"
+            ? CLASSICAL_OP_DEFS.assign.description
           : element.type === "measurement"
             ? CLASSICAL_OP_DEFS.measurement.description
             : element.type === "reset"
@@ -82,9 +84,13 @@ function selectedMessage(element: CircuitElement) {
     element.type === "measurement"
       ? ` · ${element.registerName ? `→ ${element.registerName}` : "⚠ no reg"}`
       : "";
+  const assign =
+    element.type === "assign"
+      ? ` · ${element.registerName ? `→ ${element.registerName}` : "⚠ no reg"} · ${describeExpr(element.expr)}`
+      : "";
   const jump = element.type === "jump" ? ` · → col ${element.targetStep ?? "?"}` : "";
   const location = element.type === "jump" ? `col ${element.step}` : `qubit ${element.qubit} · col ${element.step}`;
-  return `${label} · ${location}${angle}${measurement}${jump}`;
+  return `${label} · ${location}${angle}${measurement}${assign}${jump}`;
 }
 
 function dropMessage(dropPreview: DropPreview) {

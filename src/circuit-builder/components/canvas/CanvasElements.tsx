@@ -140,6 +140,24 @@ export function ElementNode({
     );
   }
 
+  if (element.type === "assign") {
+    const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.assign.color;
+    return (
+      <g {...ops}>
+        <rect x={cx - GB / 2} y={cy - GB / 2} width={GB} height={GB} rx={3} fill={fill} stroke={selected ? UI_COLORS.amber700 : "none"} strokeWidth={2} />
+        <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={11} fontFamily="monospace" fontWeight={700}>
+          :=
+        </text>
+        <text x={cx} y={cy + 10} textAnchor="middle" dominantBaseline="middle" fill={UI_COLORS.white} fontSize={8} fontFamily="monospace" fontWeight={700}>
+          {describeExprCompact(element.expr, 8)}
+        </text>
+        <text x={cx} y={cy - GB / 2 - 4} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={element.registerName ? UI_COLORS.slate500 : ERROR_COLORS.label}>
+          {element.registerName ?? "no reg"}
+        </text>
+      </g>
+    );
+  }
+
   if (element.type === "reset") {
     const fill = selected ? UI_COLORS.amber500 : CLASSICAL_OP_DEFS.reset.color;
     return (

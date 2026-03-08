@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { MIN_STEPS } from "../constants";
 import type {
+  AssignModalState,
   CircuitElement,
   ClassicalControlElement,
   ClassicalRegister,
@@ -49,6 +50,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const [parameterModal, setParameterModal] = useState<ParameterModalState | null>(null);
   const [classicalRegisterModal, setClassicalRegisterModal] = useState<ClassicalRegisterModalState | null>(null);
   const [conditionModal, setConditionModal] = useState<ConditionModalState | null>(null);
+  const [assignModal, setAssignModal] = useState<AssignModalState | null>(null);
   const [jumpModal, setJumpModal] = useState<JumpModalState | null>(null);
   const [hoveredJumpTargetStep, setHoveredJumpTargetStep] = useState<number | null>(null);
   const [customGateModal, setCustomGateModal] = useState<CustomGateModalState | null>(null);
@@ -258,6 +260,17 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           );
         }
         setClassicalRegisterModal({ elId: newElement.id });
+      } else if (newElement.type === "assign") {
+        if (classicalRegsRef.current.length > 0) {
+          setElements((current) =>
+            current.map((el) =>
+              el.id === newElement.id && el.type === "assign"
+                ? { ...el, registerName: classicalRegsRef.current[0]?.name ?? null }
+                : el,
+            ),
+          );
+        }
+        setAssignModal({ elId: newElement.id });
       } else if (newElement.type === "jump") {
         openJumpTargetEditor(newElement.id, newStep);
       } else if (newElement.type === "unitary" && newElement.params) {
@@ -477,6 +490,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         !classicalRegisterModal &&
         !parameterModal &&
         !conditionModal &&
+        !assignModal &&
         !jumpModal
       ) {
         event.preventDefault();
@@ -488,7 +502,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         clearSelection();
       }
     },
-    [classicalRegisterModal, clearSelection, conditionModal, jumpModal, parameterModal, selectedIds, setElements],
+    [assignModal, classicalRegisterModal, clearSelection, conditionModal, jumpModal, parameterModal, selectedIds, setElements],
   );
 
   const startCanvasSelection = useCallback(
@@ -724,6 +738,14 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     [elements, jumpModal],
   );
 
+  const assignModalElement = useMemo(
+    () =>
+      assignModal
+        ? elements.find((el): el is Extract<CircuitElement, { type: "assign" }> => el.id === assignModal.elId && el.type === "assign") ?? null
+        : null,
+    [assignModal, elements],
+  );
+
   const assignMeasurementRegister = useCallback(
     (registerName: string) => {
       if (!classicalRegisterModal) {
@@ -816,6 +838,24 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     [jumpModal, setElements],
   );
 
+  const applyAssign = useCallback(
+    (registerName: string | null, expr: Extract<CircuitElement, { type: "assign" }>["expr"]) => {
+      if (!assignModal) {
+        return;
+      }
+
+      setElements((current) =>
+        current.map((el) =>
+          el.id === assignModal.elId && el.type === "assign"
+            ? { ...el, registerName, expr }
+            : el,
+        ),
+      );
+      setAssignModal(null);
+    },
+    [assignModal, setElements],
+  );
+
   const createCustomGate = useCallback(
     (name: string) => {
       const trimmed = name.trim();
@@ -870,6 +910,8 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       classicalRegisterModalElement,
       conditionModal,
       conditionModalElement,
+      assignModal,
+      assignModalElement,
       jumpModal,
       jumpModalElement,
       hoveredJumpTargetStep,
@@ -889,6 +931,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setParameterModal,
       setClassicalRegisterModal,
       setConditionModal,
+      setAssignModal,
       setJumpModal,
       setHoveredJumpTargetStep,
       setCustomGateModal,
@@ -909,6 +952,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       assignMeasurementRegister,
       createRegisterAndAssign,
       applyCondition,
+      applyAssign,
       applyParameter,
       applyJumpTarget,
       createCustomGate,

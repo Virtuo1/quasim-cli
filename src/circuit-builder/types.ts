@@ -72,6 +72,13 @@ export interface MeasurementElement extends BaseElement {
   registerName: string | null;
 }
 
+export interface AssignElement extends BaseElement {
+  type: "assign";
+  qubit: number;
+  registerName: string | null;
+  expr: Expr;
+}
+
 export interface ResetElement extends BaseElement {
   type: "reset";
   qubit: number;
@@ -99,6 +106,7 @@ export type QuantumRenderableElement =
   | SwapElement
   | UnitaryGateElement
   | MeasurementElement
+  | AssignElement
   | ResetElement
   | JumpElement
   | CustomGateElement;
@@ -121,6 +129,7 @@ export interface StepAnalysis {
   ctrls: ControlElement[];
   unitaryGates: UnitaryGateElement[];
   measurements: MeasurementElement[];
+  assigns: AssignElement[];
   resets: ResetElement[];
   jumps: JumpElement[];
   customs: CustomGateElement[];
@@ -136,6 +145,7 @@ export interface StepAnalysis {
   cctrlOrphan: boolean;
   cctrlMultiple: boolean;
   measurementWithoutRegister: boolean;
+  assignWithoutRegister: boolean;
   hasError: boolean;
 }
 
@@ -146,6 +156,7 @@ export type PaletteDragSpec =
   | { type: "swap" }
   | { type: "unitary"; kind: UnitaryGateKind }
   | { type: "measurement" }
+  | { type: "assign" }
   | { type: "reset" }
   | { type: "jump" }
   | { type: "custom"; classifier: string };
@@ -176,6 +187,10 @@ export interface ConditionModalState {
   elId: number;
 }
 
+export interface AssignModalState {
+  elId: number;
+}
+
 export interface JumpModalState {
   elId: number;
 }
@@ -193,7 +208,7 @@ export interface SelectionBox {
 
 export interface SerializedGate {
   step: number;
-  type: UnitaryGateKind | "SWAP" | "M" | "RESET" | "JUMP" | "CUSTOM";
+  type: UnitaryGateKind | "SWAP" | "M" | "ASSIGN" | "RESET" | "JUMP" | "CUSTOM";
   qubit?: number;
   qubits?: number[];
   controls?: number[];
@@ -201,6 +216,7 @@ export interface SerializedGate {
   creg?: string | null;
   classifier?: string;
   targetStep?: number | null;
+  expr?: Expr;
 }
 
 export interface SerializedCondition {

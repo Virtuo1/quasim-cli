@@ -22,7 +22,7 @@ export function exportCircuitToFile({
   for (let step = 0; step < steps; step += 1) {
     const stepElements = elements.filter((element) => element.step === step);
     const analysis = analyzeStep(stepElements, customGateDefinitions);
-    const { swaps, ctrls, unitaryGates, measurements, resets, jumps, customs, cctrl, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } = analysis;
+    const { swaps, ctrls, unitaryGates, measurements, assigns, resets, jumps, customs, cctrl, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } = analysis;
     const controls =
       ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom
         ? []
@@ -56,6 +56,17 @@ export function exportCircuitToFile({
       }
       if (measurement.registerName) {
         operation.creg = measurement.registerName;
+      }
+      gates.push(operation);
+    }
+
+    for (const assign of assigns) {
+      const operation: SerializedGate = { step, type: "ASSIGN", qubit: assign.qubit, expr: assign.expr };
+      if (controls.length > 0) {
+        operation.controls = controls;
+      }
+      if (assign.registerName) {
+        operation.creg = assign.registerName;
       }
       gates.push(operation);
     }
@@ -151,6 +162,15 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         qubit: gate.qubit,
         registerName: gate.creg ?? null,
       });
+    } else if (gate.type === "ASSIGN" && typeof gate.qubit === "number") {
+      elements.push({
+        id: uid(),
+        type: "assign",
+        step: gate.step,
+        qubit: gate.qubit,
+        registerName: gate.creg ?? null,
+        expr: gate.expr ?? { kind: "int", value: 0 },
+      });
     } else if (gate.type === "RESET" && typeof gate.qubit === "number") {
       elements.push({
         id: uid(),
@@ -167,6 +187,7 @@ export function deserializeCircuit(raw: SerializedCircuit) {
       });
     } else if (
       gate.type !== "M" &&
+      gate.type !== "ASSIGN" &&
       gate.type !== "RESET" &&
       gate.type !== "CUSTOM" &&
       typeof gate.qubit === "number"

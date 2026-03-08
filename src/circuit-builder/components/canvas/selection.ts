@@ -103,6 +103,8 @@ function getElementBounds(
       ? `${element.kind}(${element.params.join(",")})`
       : element.type === "unitary"
         ? element.kind
+        : element.type === "assign"
+          ? "ASSIGN"
         : element.type === "measurement"
           ? "M"
           : "|0⟩";
