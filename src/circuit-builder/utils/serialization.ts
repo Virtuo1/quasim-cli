@@ -2,6 +2,7 @@ import type {
   CircuitElement,
   ClassicalRegister,
   CustomGateDefinition,
+  SerializedCondition,
   SerializedCircuit,
   SerializedGate,
 } from "../types";
@@ -23,10 +24,11 @@ export function exportCircuitToFile({
   customGateDefinitions: CustomGateDefinition[];
 }) {
   const gates: SerializedGate[] = [];
+  const conditions: SerializedCondition[] = [];
 
   for (let step = 0; step < steps; step += 1) {
     const stepElements = elements.filter((element) => element.step === step);
-    const analysis = analyzeStep(stepElements);
+    const analysis = analyzeStep(stepElements, customGateDefinitions);
     const { swaps, ctrls, unitaryGates, measurements, resets, jumps, customs, cctrl, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } = analysis;
     const controls =
       ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom
@@ -35,11 +37,15 @@ export function exportCircuitToFile({
     const condition =
       cctrl.length > 0
         ? {
+            step,
             reg: cctrl[0].condition.registerName,
             op: cctrl[0].condition.operator,
             val: cctrl[0].condition.value,
           }
         : null;
+    if (condition) {
+      conditions.push(condition);
+    }
 
     for (const gate of unitaryGates) {
       const operation: SerializedGate = { step, type: gate.kind, qubit: gate.qubit };
@@ -48,9 +54,6 @@ export function exportCircuitToFile({
       }
       if (gate.params && gate.params.length > 0) {
         operation.params = gate.params;
-      }
-      if (condition) {
-        operation.condition = condition;
       }
       gates.push(operation);
     }
@@ -63,9 +66,6 @@ export function exportCircuitToFile({
       if (measurement.registerName) {
         operation.creg = measurement.registerName;
       }
-      if (condition) {
-        operation.condition = condition;
-      }
       gates.push(operation);
     }
 
@@ -73,9 +73,6 @@ export function exportCircuitToFile({
       const operation: SerializedGate = { step, type: "RESET", qubit: reset.qubit };
       if (controls.length > 0) {
         operation.controls = controls;
-      }
-      if (condition) {
-        operation.condition = condition;
       }
       gates.push(operation);
     }
@@ -90,9 +87,6 @@ export function exportCircuitToFile({
         type: "JUMP",
         targetStep: jump.targetStep,
       };
-      if (condition) {
-        operation.condition = condition;
-      }
       gates.push(operation);
     }
 
@@ -106,9 +100,6 @@ export function exportCircuitToFile({
       if (controls.length > 0) {
         operation.controls = controls;
       }
-      if (condition) {
-        operation.condition = condition;
-      }
       gates.push(operation);
     }
 
@@ -121,9 +112,6 @@ export function exportCircuitToFile({
       if (controls.length > 0) {
         operation.controls = controls;
       }
-      if (condition) {
-        operation.condition = condition;
-      }
       gates.push(operation);
     }
   }
@@ -134,6 +122,7 @@ export function exportCircuitToFile({
     classicalRegisters: classicalRegisters.map((register) => register.name),
     customGates: serializeCustomGateDefinitions(customGateDefinitions),
     gates,
+    conditions,
   };
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
@@ -209,26 +198,29 @@ export function deserializeCircuit(raw: SerializedCircuit) {
       }
     }
 
-    if (gate.condition) {
-      const key = `${gate.step}:${gate.condition.reg}`;
-      if (!usedCctrl.has(key)) {
-        usedCctrl.add(key);
-        const regIndex = classicalRegs.findIndex((register) => register.name === gate.condition?.reg);
-        if (regIndex >= 0) {
-          elements.push({
-            id: uid(),
-            type: "cctrl",
-            step: gate.step,
-            cregIdx: regIndex,
-            condition: {
-              kind: "comparison",
-              registerName: gate.condition.reg,
-              operator: gate.condition.op,
-              value: gate.condition.val,
-            },
-          });
-        }
-      }
+  }
+
+  for (const condition of raw.conditions ?? []) {
+    const key = `${condition.step}:${condition.reg}`;
+    if (usedCctrl.has(key)) {
+      continue;
+    }
+
+    usedCctrl.add(key);
+    const regIndex = classicalRegs.findIndex((register) => register.name === condition.reg);
+    if (regIndex >= 0) {
+      elements.push({
+        id: uid(),
+        type: "cctrl",
+        step: condition.step,
+        cregIdx: regIndex,
+        condition: {
+          kind: "comparison",
+          registerName: condition.reg,
+          operator: condition.op,
+          value: condition.val,
+        },
+      });
     }
   }
 

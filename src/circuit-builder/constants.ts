@@ -73,6 +73,7 @@ export const UNITARY_OP_DEFS = {
   RZ: { label: "Rz", color: "#6D28D9", description: "Rz(θ)", expectedParameters: ["θ"] },
   P: { label: "P", color: "#0D9488", description: "Phase(λ)", expectedParameters: ["λ"] },
   U: { label: "U", color: "#475569", description: "U(θ,ϕ,λ)", expectedParameters: ["θ", "ϕ", "λ"] },
+  I: { label: "I", color: "#17191b", description: "Identity" },
 } as const satisfies Record<string, UnitaryOpDef>;
 
 export type UnitaryGateKind = keyof typeof UNITARY_OP_DEFS;

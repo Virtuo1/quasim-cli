@@ -103,6 +103,8 @@ export interface StepAnalysis {
   ctrlOrphan: boolean;
   ctrlOnClassicalOp: boolean;
   ctrlOnCustom: boolean;
+  overlapError: boolean;
+  overlapElementIds: number[];
   jumpMixedColumn: boolean;
   jumpWithoutTarget: boolean;
   cctrlOrphan: boolean;
@@ -173,11 +175,13 @@ export interface SerializedGate {
   creg?: string | null;
   classifier?: string;
   targetStep?: number | null;
-  condition?: {
-    reg: string;
-    op: ConditionOperator;
-    val: number;
-  } | null;
+}
+
+export interface SerializedCondition {
+  step: number;
+  reg: string;
+  op: ConditionOperator;
+  val: number;
 }
 
 export interface SerializedCustomGateOperation {
@@ -200,6 +204,7 @@ export interface SerializedCircuit {
   classicalRegisters?: string[];
   customGates?: SerializedCustomGateDefinition[];
   gates?: SerializedGate[];
+  conditions?: SerializedCondition[];
 }
 
 export interface CustomGateDefinition {

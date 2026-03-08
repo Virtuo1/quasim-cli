@@ -658,10 +658,10 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
     const analysis: StepAnalysisMap = {};
     // Keep the expensive per-step validation derived from current editor state rather than duplicating it in events.
     for (let step = 0; step < nS; step += 1) {
-      analysis[step] = analyzeStep(elements.filter((el) => el.step === step));
+      analysis[step] = analyzeStep(elements.filter((el) => el.step === step), customGateDefinitions);
     }
     return analysis;
-  }, [elements, nS]);
+  }, [customGateDefinitions, elements, nS]);
 
   const errorSteps = useMemo(
     () => Object.values(stepAnalysis).filter((analysis) => analysis.hasError).length,

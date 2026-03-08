@@ -93,6 +93,7 @@ export function CircuitCanvas({
         {elements.map((element) => {
           const analysis = stepAnalysis[element.step];
           const inError =
+            analysis.overlapElementIds.includes(element.id) ||
             (element.type === "ctrl" && (analysis.ctrlOrphan || analysis.ctrlOnClassicalOp || analysis.ctrlOnCustom)) ||
             (element.type === "custom" && analysis.ctrlOnCustom) ||
             (element.type === "swap" && analysis.swapError) ||

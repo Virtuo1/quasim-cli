@@ -69,7 +69,10 @@ export function cellTaken(
   });
 }
 
-export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
+export function analyzeStep(
+  stepElements: CircuitElement[],
+  customGateDefinitions: CustomGateDefinition[] = [],
+): StepAnalysis {
   const swaps = stepElements.filter((element): element is Extract<CircuitElement, { type: "swap" }> => element.type === "swap");
   const ctrls = stepElements.filter((element): element is Extract<CircuitElement, { type: "ctrl" }> => element.type === "ctrl");
   const unitaryGates = stepElements.filter((element): element is Extract<CircuitElement, { type: "unitary" }> => element.type === "unitary");
@@ -85,6 +88,8 @@ export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
   const ctrlOrphan = ctrls.length > 0 && !hasQuantumTargets;
   const ctrlOnClassicalOp = ctrls.length > 0 && classicalOps > 0;
   const ctrlOnCustom = ctrls.length > 0 && customs.length > 0;
+  const overlapElementIds = findOverlappingElementIds(stepElements, customGateDefinitions);
+  const overlapError = overlapElementIds.length > 0;
   const jumpMixedColumn =
     jumps.length > 0 &&
     (jumps.length > 1 || stepElements.some((element) => element.type !== "jump" && element.type !== "cctrl"));
@@ -106,6 +111,8 @@ export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
     ctrlOrphan,
     ctrlOnClassicalOp,
     ctrlOnCustom,
+    overlapError,
+    overlapElementIds,
     jumpMixedColumn,
     jumpWithoutTarget,
     cctrlOrphan,
@@ -116,6 +123,7 @@ export function analyzeStep(stepElements: CircuitElement[]): StepAnalysis {
       ctrlOrphan ||
       ctrlOnClassicalOp ||
       ctrlOnCustom ||
+      overlapError ||
       jumpMixedColumn ||
       jumpWithoutTarget ||
       cctrlOrphan ||
@@ -132,8 +140,8 @@ export function getConnectorLinesWithCustoms(
   stepElements: CircuitElement[],
   customGateDefinitions: CustomGateDefinition[] = [],
 ): QuantumConnectorLine[] {
-  const { swaps, ctrls, unitaryGates, measurements, resets, customs, cctrl, swapError, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom } =
-    analyzeStep(stepElements);
+  const { swaps, ctrls, unitaryGates, measurements, resets, customs, cctrl, swapError, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom, overlapError } =
+    analyzeStep(stepElements, customGateDefinitions);
   const lines: QuantumConnectorLine[] = [];
   const hasClassicalControl = cctrl.length > 0;
 
@@ -167,7 +175,7 @@ export function getConnectorLinesWithCustoms(
           kind: "quantum",
           q1: minQubit,
           q2: topTargetQubit,
-          error: ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom || swapError,
+          error: ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom || swapError || overlapError,
         });
         return lines;
       }
@@ -176,7 +184,7 @@ export function getConnectorLinesWithCustoms(
         kind: "quantum",
         q1: minQubit,
         q2: maxQubit,
-        error: ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom || swapError,
+        error: ctrlOrphan || ctrlOnClassicalOp || ctrlOnCustom || swapError || overlapError,
       });
     }
   } else if (swaps.length >= 2 && !hasClassicalControl) {
@@ -185,7 +193,7 @@ export function getConnectorLinesWithCustoms(
       kind: "quantum",
       q1: Math.min(...swapQubits),
       q2: Math.max(...swapQubits),
-      error: swapError,
+      error: swapError || overlapError,
     });
   }
 
@@ -245,4 +253,35 @@ export function classicalControlWireLine(
     y1: cregY(control.cregIdx, nQ) - 7,
     y2: wireY(topTargetQubit),
   };
+}
+
+function findOverlappingElementIds(
+  stepElements: CircuitElement[],
+  customGateDefinitions: CustomGateDefinition[],
+) {
+  const occupiedByQubit = new Map<number, number[]>();
+
+  for (const element of stepElements) {
+    if (element.type === "cctrl") {
+      continue;
+    }
+
+    const occupiedQubits =
+      element.type === "custom"
+        ? customGateOccupiedQubits(
+            element,
+            customGateDefinitions.find((candidate) => candidate.classifier === element.classifier),
+          )
+        : element.type === "jump"
+          ? []
+          : [element.qubit];
+
+    for (const qubit of occupiedQubits) {
+      const existing = occupiedByQubit.get(qubit) ?? [];
+      existing.push(element.id);
+      occupiedByQubit.set(qubit, existing);
+    }
+  }
+
+  return [...occupiedByQubit.values()].filter((ids) => ids.length > 1).flat();
 }
