@@ -185,10 +185,6 @@ export function ConditionModal({
   return (
     <ModalFrame width={1180}>
       <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Classical Condition</div>
-        <div style={{ fontSize: 12, color: UI_COLORS.slate500, marginBottom: 12 }}>
-          Anchor lane {classicalRegs[element.cregIdx]?.name ?? `c${element.cregIdx}`} · step {element.step}
-        </div>
 
         <div style={summaryGridStyle}>
           <SummaryCard title="Expression" value={describeExpr(localExpr)} mono />
