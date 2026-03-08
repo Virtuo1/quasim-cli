@@ -472,6 +472,8 @@ function selectedDetails(element: CircuitElement) {
         <>
           <br />
           reg: <b>{element.registerName ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
+          <br />
+          bit: <b>{element.bitIndex ?? <span style={{ color: UI_COLORS.red600 }}>unassigned</span>}</b>
         </>
       ) : null}
       {element.type === "assign" ? (

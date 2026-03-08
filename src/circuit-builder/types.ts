@@ -70,6 +70,7 @@ export interface MeasurementElement extends BaseElement {
   type: "measurement";
   qubit: number;
   registerName: string | null;
+  bitIndex: number | null;
 }
 
 export interface AssignElement extends BaseElement {
@@ -140,11 +141,13 @@ export interface StepAnalysis {
   ctrlOnCustom: boolean;
   overlapError: boolean;
   overlapElementIds: number[];
+  measurementBitConflict: boolean;
+  measurementBitConflictIds: number[];
   jumpMixedColumn: boolean;
   jumpWithoutTarget: boolean;
   cctrlOrphan: boolean;
   cctrlMultiple: boolean;
-  measurementWithoutRegister: boolean;
+  measurementWithoutTarget: boolean;
   assignWithoutRegister: boolean;
   hasError: boolean;
 }
@@ -214,6 +217,7 @@ export interface SerializedGate {
   controls?: number[];
   params?: number[];
   creg?: string | null;
+  cregBit?: number | null;
   classifier?: string;
   targetStep?: number | null;
   expr?: Expr;

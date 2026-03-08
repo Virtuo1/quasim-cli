@@ -134,7 +134,7 @@ export function ElementNode({
         <path d={`M ${cx - 9} ${cy + 4} A 9 9 0 0 1 ${cx + 9} ${cy + 4}`} stroke={UI_COLORS.white} strokeWidth={1.5} fill="none" />
         <line x1={cx} y1={cy + 4} x2={cx + 8} y2={cy - 6} stroke={UI_COLORS.white} strokeWidth={1.5} />
         <text x={cx} y={cy - GB / 2 - 4} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={element.registerName ? UI_COLORS.slate500 : ERROR_COLORS.label}>
-          {element.registerName ?? "no reg"}
+          {element.registerName ? `${element.registerName}[${element.bitIndex ?? "?"}]` : "no reg"}
         </text>
       </g>
     );

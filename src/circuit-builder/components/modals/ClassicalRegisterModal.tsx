@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { UI_COLORS } from "../../constants";
+import { MAX_CREG_BIT_INDEX, UI_COLORS } from "../../constants";
 import type { ClassicalRegister, ClassicalRegisterModalState, MeasurementElement } from "../../types";
 import { ModalFrame } from "./ModalFrame";
 
@@ -9,8 +9,8 @@ interface ClassicalRegisterModalProps {
   element: MeasurementElement | null;
   classicalRegs: ClassicalRegister[];
   onCancel: () => void;
-  onAssign: (regName: string) => void;
-  onCreateAndAssign: (name: string) => void;
+  onAssign: (regName: string, bitIndex: number) => void;
+  onCreateAndAssign: (name: string, bitIndex: number) => void;
 }
 
 export function ClassicalRegisterModal({
@@ -23,16 +23,19 @@ export function ClassicalRegisterModal({
 }: ClassicalRegisterModalProps) {
   const [selectedReg, setSelectedReg] = useState("");
   const [newName, setNewName] = useState("");
+  const [bitIndexInput, setBitIndexInput] = useState("");
 
   useEffect(() => {
     if (!modal || !element) {
       setSelectedReg("");
       setNewName("");
+      setBitIndexInput("");
       return;
     }
 
     setSelectedReg(element.registerName ?? classicalRegs[0]?.name ?? "");
     setNewName("");
+    setBitIndexInput(element.bitIndex == null ? "" : String(element.bitIndex));
   }, [classicalRegs, element, modal]);
 
   if (!modal || !element) {
@@ -40,6 +43,12 @@ export function ClassicalRegisterModal({
   }
 
   const duplicateName = classicalRegs.some((reg) => reg.name === newName.trim());
+  const parsedBitIndex = Number(bitIndexInput);
+  const bitIndexIsValid =
+    bitIndexInput.trim() !== "" &&
+    Number.isInteger(parsedBitIndex) &&
+    parsedBitIndex >= 0 &&
+    parsedBitIndex <= MAX_CREG_BIT_INDEX;
 
   return (
     <ModalFrame width={360}>
@@ -48,9 +57,34 @@ export function ClassicalRegisterModal({
         Measurement on q{element.qubit}, step {element.step}
       </div>
 
+      <div style={{ fontSize: 11, fontWeight: 600, color: UI_COLORS.slate700, marginBottom: 6 }}>Target bit index</div>
+      <input
+        value={bitIndexInput}
+        onChange={(event) => setBitIndexInput(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && selectedReg && classicalRegs.length > 0 && bitIndexIsValid) {
+            onAssign(selectedReg, parsedBitIndex);
+          }
+        }}
+        placeholder={`0-${MAX_CREG_BIT_INDEX}`}
+        inputMode="numeric"
+        style={{
+          width: "100%",
+          padding: "6px 9px",
+          border: `1px solid ${bitIndexInput.trim() === "" || bitIndexIsValid ? UI_COLORS.borderMid : UI_COLORS.red600}`,
+          borderRadius: 4,
+          fontFamily: "monospace",
+          fontSize: 12,
+          marginBottom: 16,
+        }}
+      />
+      <div style={{ fontSize: 11, color: bitIndexInput.trim() === "" || bitIndexIsValid ? UI_COLORS.slate500 : UI_COLORS.red600, marginTop: -10, marginBottom: 16 }}>
+        Bit index must be an integer between 0 and {MAX_CREG_BIT_INDEX}.
+      </div>
+
       {classicalRegs.length > 0 ? (
         <>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Select existing register</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: UI_COLORS.slate700, marginBottom: 6 }}>Select existing register</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
             {classicalRegs.map((reg) => (
               <label
@@ -95,14 +129,14 @@ export function ClassicalRegisterModal({
         </div>
       )}
 
-      <div style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Or create a new register</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: UI_COLORS.slate700, marginBottom: 6 }}>Or create a new register</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
         <input
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              onCreateAndAssign(newName);
+            if (event.key === "Enter" && bitIndexIsValid) {
+              onCreateAndAssign(newName, parsedBitIndex);
             }
           }}
           placeholder="name, e.g. c0"
@@ -116,8 +150,8 @@ export function ClassicalRegisterModal({
           }}
         />
         <button
-          onClick={() => onCreateAndAssign(newName)}
-          disabled={!newName.trim() || duplicateName}
+          onClick={() => onCreateAndAssign(newName, parsedBitIndex)}
+          disabled={!newName.trim() || duplicateName || !bitIndexIsValid}
           style={{
             padding: "6px 12px",
             background: UI_COLORS.slate900,
@@ -126,7 +160,7 @@ export function ClassicalRegisterModal({
             borderRadius: 4,
             cursor: "pointer",
             fontSize: 12,
-            opacity: !newName.trim() || duplicateName ? 0.5 : 1,
+            opacity: !newName.trim() || duplicateName || !bitIndexIsValid ? 0.5 : 1,
           }}
         >
           Create &amp; assign
@@ -138,11 +172,11 @@ export function ClassicalRegisterModal({
           Cancel
         </button>
         <button
-          onClick={() => onAssign(selectedReg)}
-          disabled={!selectedReg || classicalRegs.length === 0}
+          onClick={() => onAssign(selectedReg, parsedBitIndex)}
+          disabled={!selectedReg || classicalRegs.length === 0 || !bitIndexIsValid}
           style={{
             ...primaryButtonStyle,
-            opacity: !selectedReg || classicalRegs.length === 0 ? 0.5 : 1,
+            opacity: !selectedReg || classicalRegs.length === 0 || !bitIndexIsValid ? 0.5 : 1,
           }}
         >
           Assign

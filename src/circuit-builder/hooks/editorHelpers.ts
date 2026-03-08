@@ -32,6 +32,7 @@ export function createElementFromPalette(
       step,
       qubit,
       registerName: null,
+      bitIndex: null,
     };
   }
 

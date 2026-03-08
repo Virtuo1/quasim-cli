@@ -254,7 +254,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           setElements((current) =>
             current.map((el) =>
               el.id === newElement.id && el.type === "measurement"
-                ? { ...el, registerName: classicalRegsRef.current[0]?.name ?? null }
+                ? { ...el, registerName: classicalRegsRef.current[0]?.name ?? null, bitIndex: null }
                 : el,
             ),
           );
@@ -747,13 +747,15 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const assignMeasurementRegister = useCallback(
-    (registerName: string) => {
+    (registerName: string, bitIndex: number) => {
       if (!classicalRegisterModal) {
         return;
       }
       setElements((current) =>
         current.map((el) =>
-          el.id === classicalRegisterModal.elId && el.type === "measurement" ? { ...el, registerName } : el,
+          el.id === classicalRegisterModal.elId && el.type === "measurement"
+            ? { ...el, registerName, bitIndex }
+            : el,
         ),
       );
       setClassicalRegisterModal(null);
@@ -762,7 +764,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const createRegisterAndAssign = useCallback(
-    (name: string) => {
+    (name: string, bitIndex: number) => {
       const trimmed = name.trim();
       if (!trimmed || classicalRegs.some((reg) => reg.name === trimmed) || !classicalRegisterModal) {
         return;
@@ -771,7 +773,9 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setCregs((current) => [...current, { id: uid(), name: trimmed }]);
       setElements((current) =>
         current.map((el) =>
-          el.id === classicalRegisterModal.elId && el.type === "measurement" ? { ...el, registerName: trimmed } : el,
+          el.id === classicalRegisterModal.elId && el.type === "measurement"
+            ? { ...el, registerName: trimmed, bitIndex }
+            : el,
         ),
       );
       setClassicalRegisterModal(null);

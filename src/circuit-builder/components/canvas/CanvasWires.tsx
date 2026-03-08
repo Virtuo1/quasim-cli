@@ -79,8 +79,113 @@ export function QuantumConnectorLines({
 }
 
 export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: CircuitElement[]; classicalRegs: ClassicalRegister[]; nQ: number }) {
+  const stepMeasureGroups = new Map<number, Extract<CircuitElement, { type: "measurement" }>[]>();
+  const groupedMeasurementIds = new Set<number>();
+
+  elements
+    .filter((element): element is Extract<CircuitElement, { type: "measurement" }> => element.type === "measurement" && !!element.registerName)
+    .forEach((element) => {
+      const current = stepMeasureGroups.get(element.step) ?? [];
+      current.push(element);
+      stepMeasureGroups.set(element.step, current);
+    });
+
   return (
     <>
+      {Array.from(stepMeasureGroups.entries()).map(([step, measurements]) => {
+        if (measurements.length < 2) {
+          return null;
+        }
+
+        const hasClassicalControl = elements.some((candidate) => candidate.type === "cctrl" && candidate.step === step);
+        const x = wireX(step) + (hasClassicalControl ? 9 : 0);
+        const measurementLines = measurements
+          .map((measurement) => ({ measurement, line: measurementWireLine(measurement, classicalRegs, nQ) }))
+          .filter(
+            (
+              entry,
+            ): entry is {
+              measurement: Extract<CircuitElement, { type: "measurement" }>;
+              line: NonNullable<ReturnType<typeof measurementWireLine>>;
+            } => entry.line != null,
+          )
+          .sort((left, right) => left.measurement.qubit - right.measurement.qubit);
+
+        if (measurementLines.length < 2) {
+          return null;
+        }
+
+        measurementLines.forEach(({ measurement }) => {
+          groupedMeasurementIds.add(measurement.id);
+        });
+
+        const topY = measurementLines[0].line.y1;
+        const registerTargets = new Map<
+          string,
+          {
+            y2: number;
+            label: string;
+          }
+        >();
+
+        for (const { measurement, line } of measurementLines) {
+          const registerName = measurement.registerName;
+          if (!registerName) {
+            continue;
+          }
+
+          const current = registerTargets.get(registerName);
+          const nextLabelPart = measurement.bitIndex == null ? "?" : String(measurement.bitIndex);
+          if (!current) {
+            registerTargets.set(registerName, {
+              y2: line.y2,
+              label: nextLabelPart,
+            });
+            continue;
+          }
+
+          registerTargets.set(registerName, {
+            y2: current.y2,
+            label: `${current.label},${nextLabelPart}`,
+          });
+        }
+
+        const targetEntries = Array.from(registerTargets.values()).sort((left, right) => left.y2 - right.y2);
+        if (targetEntries.length === 0) {
+          return null;
+        }
+
+        return (
+          <g key={`measurement-column-${step}`}>
+            <line
+              x1={x}
+              y1={topY}
+              x2={x}
+              y2={targetEntries[targetEntries.length - 1].y2 - 7}
+              stroke={UI_COLORS.slate500}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+            {targetEntries.map((target) => (
+              <g key={`measurement-column-${step}-target-${target.y2}`}>
+                <polygon points={`${x},${target.y2} ${x - 4},${target.y2 - 8} ${x + 4},${target.y2 - 8}`} fill={UI_COLORS.slate500} />
+                <text
+                  x={x + 8}
+                  y={target.y2 - 4}
+                  textAnchor="start"
+                  dominantBaseline="middle"
+                  fontSize={9}
+                  fontFamily="monospace"
+                  fontWeight={700}
+                  fill={UI_COLORS.slate700}
+                >
+                  {target.label}
+                </text>
+              </g>
+            ))}
+          </g>
+        );
+      })}
       {elements
         .filter(
           (
@@ -89,6 +194,10 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
             (el.type === "measurement" || el.type === "assign") && !!el.registerName,
         )
         .map((element) => {
+          if (element.type === "measurement" && groupedMeasurementIds.has(element.id)) {
+            return null;
+          }
+
           const line = measurementWireLine(element, classicalRegs, nQ);
           if (!line) {
             return null;
@@ -99,6 +208,20 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
             <g key={`measurement-wire-${element.id}`}>
               <line x1={x} y1={line.y1} x2={x} y2={line.y2 - 7} stroke={UI_COLORS.slate500} strokeWidth={1} strokeDasharray="4 3" />
               <polygon points={`${x},${line.y2} ${x - 4},${line.y2 - 8} ${x + 4},${line.y2 - 8}`} fill={UI_COLORS.slate500} />
+              {element.type === "measurement" && element.bitIndex != null ? (
+                <text
+                  x={x + 8}
+                  y={line.y2 - 4}
+                  textAnchor="start"
+                  dominantBaseline="middle"
+                  fontSize={9}
+                  fontFamily="monospace"
+                  fontWeight={700}
+                  fill={UI_COLORS.slate700}
+                >
+                  {element.bitIndex}
+                </text>
+              ) : null}
             </g>
           );
         })}

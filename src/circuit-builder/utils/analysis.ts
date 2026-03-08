@@ -1,4 +1,4 @@
-import { GB, MIN_STEPS } from "../constants";
+import { GB, MAX_CREG_BIT_INDEX, MIN_STEPS } from "../constants";
 import type {
   AssignElement,
   CircuitElement,
@@ -93,13 +93,21 @@ export function analyzeStep(
   const ctrlOnCustom = ctrls.length > 0 && customs.length > 0;
   const overlapElementIds = findOverlappingElementIds(stepElements, customGateDefinitions);
   const overlapError = overlapElementIds.length > 0;
+  const measurementBitConflictIds = findDuplicateMeasurementTargets(measurements);
+  const measurementBitConflict = measurementBitConflictIds.length > 0;
   const jumpMixedColumn =
     jumps.length > 0 &&
     (jumps.length > 1 || stepElements.some((element) => element.type !== "jump" && element.type !== "cctrl"));
   const jumpWithoutTarget = jumps.some((jump) => jump.targetStep == null);
   const cctrlOrphan = cctrl.length > 0 && !hasQuantumTargets;
   const cctrlMultiple = cctrl.length > 1;
-  const measurementWithoutRegister = measurements.some((measurement) => !measurement.registerName);
+  const measurementWithoutTarget = measurements.some(
+    (measurement) =>
+      !measurement.registerName ||
+      measurement.bitIndex == null ||
+      measurement.bitIndex < 0 ||
+      measurement.bitIndex > MAX_CREG_BIT_INDEX,
+  );
   const assignWithoutRegister = assigns.some((assign) => !assign.registerName);
 
   return {
@@ -118,11 +126,13 @@ export function analyzeStep(
     ctrlOnCustom,
     overlapError,
     overlapElementIds,
+    measurementBitConflict,
+    measurementBitConflictIds,
     jumpMixedColumn,
     jumpWithoutTarget,
     cctrlOrphan,
     cctrlMultiple,
-    measurementWithoutRegister,
+    measurementWithoutTarget,
     assignWithoutRegister,
     hasError:
       swapError ||
@@ -130,13 +140,33 @@ export function analyzeStep(
       ctrlOnClassicalOp ||
       ctrlOnCustom ||
       overlapError ||
+      measurementBitConflict ||
       jumpMixedColumn ||
       jumpWithoutTarget ||
       cctrlOrphan ||
       cctrlMultiple ||
-      measurementWithoutRegister ||
+      measurementWithoutTarget ||
       assignWithoutRegister,
   };
+}
+
+function findDuplicateMeasurementTargets(measurements: MeasurementElement[]) {
+  const targets = new Map<string, number[]>();
+
+  for (const measurement of measurements) {
+    if (!measurement.registerName || measurement.bitIndex == null) {
+      continue;
+    }
+
+    const key = `${measurement.registerName}:${measurement.bitIndex}`;
+    const existing = targets.get(key) ?? [];
+    existing.push(measurement.id);
+    targets.set(key, existing);
+  }
+
+  return Array.from(targets.values())
+    .filter((ids) => ids.length > 1)
+    .flat();
 }
 
 export function getConnectorLines(stepElements: CircuitElement[]): QuantumConnectorLine[] {

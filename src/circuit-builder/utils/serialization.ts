@@ -57,6 +57,9 @@ export function exportCircuitToFile({
       if (measurement.registerName) {
         operation.creg = measurement.registerName;
       }
+      if (measurement.bitIndex != null) {
+        operation.cregBit = measurement.bitIndex;
+      }
       gates.push(operation);
     }
 
@@ -161,6 +164,7 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         step: gate.step,
         qubit: gate.qubit,
         registerName: gate.creg ?? null,
+        bitIndex: typeof gate.cregBit === "number" ? gate.cregBit : null,
       });
     } else if (gate.type === "ASSIGN" && typeof gate.qubit === "number") {
       elements.push({

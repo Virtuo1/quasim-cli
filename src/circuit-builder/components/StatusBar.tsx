@@ -82,7 +82,7 @@ function selectedMessage(element: CircuitElement) {
       : "";
   const measurement =
     element.type === "measurement"
-      ? ` · ${element.registerName ? `→ ${element.registerName}` : "⚠ no reg"}`
+      ? ` · ${element.registerName ? `→ ${element.registerName}[${element.bitIndex ?? "?"}]` : "⚠ no reg"}`
       : "";
   const assign =
     element.type === "assign"
