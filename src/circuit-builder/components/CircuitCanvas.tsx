@@ -88,7 +88,14 @@ export function CircuitCanvas({
         />
         <MeasurementWires elements={elements} classicalRegs={classicalRegs} nQ={nQ} />
         <ClassicalRegisterLines classicalRegs={classicalRegs} nQ={nQ} nS={nS} />
-        <ClassicalControlWires elements={elements} nQ={nQ} customGateDefinitions={customGateDefinitions} />
+        <ClassicalControlWires
+          elements={elements}
+          classicalRegs={classicalRegs}
+          selectedIds={selectedIds}
+          nQ={nQ}
+          customGateDefinitions={customGateDefinitions}
+          stepAnalysis={stepAnalysis}
+        />
 
         {elements.map((element) => {
           const analysis = stepAnalysis[element.step];
@@ -106,6 +113,7 @@ export function CircuitCanvas({
               key={element.id}
               element={element}
               nQ={nQ}
+              classicalRegs={classicalRegs}
               customGateDefinitions={customGateDefinitions}
               selected={selectedIds.includes(element.id)}
               dragging={element.id === draggingId}

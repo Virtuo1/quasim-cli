@@ -10,7 +10,7 @@ import { ConditionModal } from "./circuit-builder/components/modals/ConditionMod
 import { CustomGateModal } from "./circuit-builder/components/modals/CustomGateModal";
 import { JumpModal } from "./circuit-builder/components/modals/JumpModal";
 import { ParameterModal } from "./circuit-builder/components/modals/ParameterModal";
-import { COND_OPS, UI_COLORS } from "./circuit-builder/constants";
+import { UI_COLORS } from "./circuit-builder/constants";
 import { useCircuitEditor } from "./circuit-builder/hooks/useCircuitEditor";
 
 function App() {
@@ -114,7 +114,7 @@ function App() {
       <ConditionModal
         modal={state.conditionModal}
         element={state.conditionModalElement}
-        operators={COND_OPS}
+        classicalRegs={state.classicalRegs}
         onCancel={() => actions.setConditionModal(null)}
         onApply={actions.applyCondition}
       />

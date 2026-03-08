@@ -1,5 +1,6 @@
 import { GB } from "../../constants";
-import type { CircuitElement, CustomGateDefinition, SelectionBox } from "../../types";
+import type { CircuitElement, ClassicalRegister, CustomGateDefinition, SelectionBox } from "../../types";
+import { exprRegisters } from "../../utils/conditions";
 import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
@@ -37,23 +38,34 @@ export function selectionHitsElement(
   box: SelectionBox,
   element: CircuitElement,
   nQ: number,
+  classicalRegs: ClassicalRegister[] = [],
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
   const a = getSelectionBounds(box);
-  const b = getElementBounds(element, nQ, customGateDefinitions);
+  const b = getElementBounds(element, nQ, classicalRegs, customGateDefinitions);
   return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
 }
 
 function getElementBounds(
   element: CircuitElement,
   nQ: number,
+  classicalRegs: ClassicalRegister[],
   customGateDefinitions: CustomGateDefinition[],
 ): Bounds {
   const cx = wireX(element.step);
 
   if (element.type === "cctrl") {
-    const cy = cregY(element.cregIdx, nQ);
-    return { left: cx - 14, top: cy - 18, right: cx + 14, bottom: cy + 18 };
+    const registerIndices = exprRegisters(element.condition)
+      .map((registerName) => classicalRegs.findIndex((register) => register.name === registerName))
+      .filter((index): index is number => index >= 0);
+    const topRegisterIndex = registerIndices.length > 0 ? Math.min(...registerIndices) : element.cregIdx;
+    const bottomRegisterIndex = registerIndices.length > 0 ? Math.max(...registerIndices) : element.cregIdx;
+    return {
+      left: cx - 18,
+      top: cregY(topRegisterIndex, nQ) - 21,
+      right: cx + 18,
+      bottom: cregY(bottomRegisterIndex, nQ) + 21,
+    };
   }
 
   if (element.type === "jump") {

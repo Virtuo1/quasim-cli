@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { COND_OPS, MIN_STEPS } from "../constants";
+import { MIN_STEPS } from "../constants";
 import type {
   CircuitElement,
   ClassicalControlElement,
@@ -29,7 +29,7 @@ import {
   findCustomGateDefinition,
   isGroupableQuantumElement,
 } from "../utils/customGates";
-import { createComparisonCondition, rebindConditionRegister, updateComparisonCondition } from "../utils/conditions";
+import { createDefaultConditionExpression, exprRegisters, rebindConditionAnchor } from "../utils/conditions";
 import { createClassicalControlElement, createDragGhostFromElement, createElementFromPalette } from "./editorHelpers";
 
 interface UseCircuitEditorArgs {
@@ -223,9 +223,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       const others = draggedId == null
         ? elementsRef.current
         : elementsRef.current.filter((candidate) => candidate.id !== draggedId);
-      const alreadyHas = others.some(
-        (el) => el.type === "cctrl" && el.step === hit.step && el.cregIdx === hit.cregIdx,
-      );
+      const alreadyHas = others.some((el) => el.type === "cctrl" && el.step === hit.step);
 
       return {
         zone: "creg",
@@ -274,7 +272,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       const newElement = createClassicalControlElement(
         preview.insertAt ?? preview.step,
         preview.cregIdx,
-        createComparisonCondition(preview.cregName),
+        createDefaultConditionExpression(preview.cregName),
       );
 
       setElements((current) => {
@@ -343,7 +341,11 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
                 ...movingEl,
                 step: insertStep,
                 cregIdx: preview.cregIdx,
-                condition: rebindConditionRegister(movingEl.condition, preview.cregName),
+                condition: rebindConditionAnchor(
+                  movingEl.condition,
+                  classicalRegsRef.current[movingEl.cregIdx]?.name ?? preview.cregName,
+                  preview.cregName,
+                ),
               },
             ];
           });
@@ -353,7 +355,16 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         setElements((current) =>
           current.map((el) =>
             el.id === elementId && el.type === "cctrl"
-              ? { ...el, step: preview.step, cregIdx: preview.cregIdx, condition: rebindConditionRegister(el.condition, preview.cregName) }
+              ? {
+                  ...el,
+                  step: preview.step,
+                  cregIdx: preview.cregIdx,
+                  condition: rebindConditionAnchor(
+                    el.condition,
+                    classicalRegsRef.current[el.cregIdx]?.name ?? preview.cregName,
+                    preview.cregName,
+                  ),
+                }
               : el,
           ),
         );
@@ -516,7 +527,13 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
             ? []
             : elementsRef.current
                 .filter((element) =>
-                  selectionHitsElement(box, element, nQRef.current, customGateDefinitionsRef.current),
+                  selectionHitsElement(
+                    box,
+                    element,
+                    nQRef.current,
+                    classicalRegsRef.current,
+                    customGateDefinitionsRef.current,
+                  ),
                 )
                 .map((element) => element.id);
 
@@ -551,7 +568,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       setCregs((current) => current.filter((entry) => entry.id !== regId));
       setElements((current) =>
         current
-          .filter((el) => !(el.type === "cctrl" && el.condition.registerName === reg.name))
+          .filter((el) => !(el.type === "cctrl" && exprRegisters(el.condition).includes(reg.name)))
           .map((el) => {
             if (el.type === "cctrl" && el.cregIdx > deletedIdx) {
               return { ...el, cregIdx: el.cregIdx - 1 };
@@ -741,7 +758,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const applyCondition = useCallback(
-    (op: (typeof COND_OPS)[number], val: number) => {
+    (condition: Extract<CircuitElement, { type: "cctrl" }>["condition"]) => {
       if (!conditionModal) {
         return;
       }
@@ -751,7 +768,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           el.id === conditionModal.elId && el.type === "cctrl"
             ? {
                 ...el,
-                condition: updateComparisonCondition(el.condition, op, val),
+                condition,
               }
             : el,
         ),

@@ -1,11 +1,4 @@
-import type {
-  CircuitElement,
-  ClassicalRegister,
-  CustomGateDefinition,
-  SerializedCondition,
-  SerializedCircuit,
-  SerializedGate,
-} from "../types";
+import type { CircuitElement, ClassicalRegister, CustomGateDefinition, SerializedCondition, SerializedCircuit, SerializedGate } from "../types";
 import { uid } from "./layout";
 import { analyzeStep } from "./analysis";
 import { deserializeCustomGateDefinitions, serializeCustomGateDefinitions } from "./customGates";
@@ -38,9 +31,7 @@ export function exportCircuitToFile({
       cctrl.length > 0
         ? {
             step,
-            reg: cctrl[0].condition.registerName,
-            op: cctrl[0].condition.operator,
-            val: cctrl[0].condition.value,
+            expr: cctrl[0].condition,
           }
         : null;
     if (condition) {
@@ -197,29 +188,24 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         elements.push({ id: uid(), type: "ctrl", step: gate.step, qubit: controlQubit });
       }
     }
-
   }
 
   for (const condition of raw.conditions ?? []) {
-    const key = `${condition.step}:${condition.reg}`;
+    const key = `${condition.step}:${JSON.stringify(condition.expr)}`;
     if (usedCctrl.has(key)) {
       continue;
     }
 
     usedCctrl.add(key);
-    const regIndex = classicalRegs.findIndex((register) => register.name === condition.reg);
+    const conditionRegisters = extractConditionRegisters(condition.expr);
+    const regIndex = classicalRegs.findIndex((register) => register.name === conditionRegisters[0]);
     if (regIndex >= 0) {
       elements.push({
         id: uid(),
         type: "cctrl",
         step: condition.step,
         cregIdx: regIndex,
-        condition: {
-          kind: "comparison",
-          registerName: condition.reg,
-          operator: condition.op,
-          value: condition.val,
-        },
+        condition: condition.expr,
       });
     }
   }
@@ -230,4 +216,26 @@ export function deserializeCircuit(raw: SerializedCircuit) {
     customGateDefinitions,
     elements,
   };
+}
+
+function extractConditionRegisters(expr: SerializedCondition["expr"]): string[] {
+  switch (expr.kind) {
+    case "reg":
+      return expr.name ? [expr.name] : [];
+    case "not":
+      return extractConditionRegisters(expr.expr);
+    case "and":
+    case "or":
+    case "xor":
+    case "add":
+    case "sub":
+    case "mul":
+    case "div":
+    case "rem":
+    case "eq":
+    case "lt":
+      return [...extractConditionRegisters(expr.left), ...extractConditionRegisters(expr.right)];
+    default:
+      return [];
+  }
 }

@@ -1,6 +1,6 @@
 import { CONNECTOR_BLACK, CLASSICAL_OP_DEFS, CLASSICAL_OP_KINDS, UI_COLORS, UNITARY_OP_DEFS, UNITARY_GATE_KINDS, unitaryGateSupportsParam } from "../constants";
 import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
-import { describeCondition } from "../utils/conditions";
+import { describeExpr, exprRegisters } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface PalettePanelProps {
@@ -418,18 +418,19 @@ function selectedTitle(element: CircuitElement) {
     return `Custom gate: ${element.classifier}`;
   }
   if (element.type === "cctrl") {
-    return `Condition: ${describeCondition(element.condition)}`;
+    return `Condition: ${describeExpr(element.condition)}`;
   }
   return "Element";
 }
 
 function selectedDetails(element: CircuitElement) {
   if (element.type === "cctrl") {
+    const registers = exprRegisters(element.condition);
     return (
       <>
-        reg: <b>{element.condition.registerName}</b>
+        regs: <b>{registers.length > 0 ? registers.join(", ") : "none"}</b>
         <br />
-        condition: <b>{describeCondition(element.condition)}</b>
+        condition: <b>{describeExpr(element.condition)}</b>
         <br />
         col {element.step}
       </>

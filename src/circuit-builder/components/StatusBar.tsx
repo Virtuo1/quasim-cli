@@ -1,6 +1,6 @@
 import { ERROR_COLORS, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS } from "../constants";
 import type { CircuitElement, DropPreview } from "../types";
-import { describeCondition } from "../utils/conditions";
+import { describeExpr } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface StatusBarProps {
@@ -57,7 +57,7 @@ export function StatusBar({ selectedElement, selectedCount, dropPreview, errorSt
 
 function selectedMessage(element: CircuitElement) {
   if (element.type === "cctrl") {
-    return `Classical condition · ${describeCondition(element.condition)} · col ${element.step}`;
+    return `Classical condition · ${describeExpr(element.condition)} · col ${element.step}`;
   }
 
   const label =

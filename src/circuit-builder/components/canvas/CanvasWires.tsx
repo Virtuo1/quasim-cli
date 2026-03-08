@@ -1,6 +1,7 @@
 import { CONNECTOR_BLACK, CW, ERROR_COLORS, UI_COLORS, LW, PX, PY } from "../../constants";
-import type { CircuitElement, ClassicalRegister, CustomGateDefinition, QuantumConnectorLine } from "../../types";
+import type { CircuitElement, ClassicalRegister, CustomGateDefinition, QuantumConnectorLine, StepAnalysisMap } from "../../types";
 import { classicalControlWireLine, measurementWireLine } from "../../utils/circuit";
+import { exprRegisters } from "../../utils/conditions";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
 export function StepLabels({
@@ -100,27 +101,74 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
 
 export function ClassicalControlWires({
   elements,
+  classicalRegs,
+  selectedIds,
   nQ,
   customGateDefinitions,
+  stepAnalysis,
 }: {
   elements: CircuitElement[];
+  classicalRegs: ClassicalRegister[];
+  selectedIds: number[];
   nQ: number;
   customGateDefinitions: CustomGateDefinition[];
+  stepAnalysis: StepAnalysisMap;
 }) {
   return (
     <>
       {elements
         .filter((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.type === "cctrl")
         .map((element) => {
-          const line = classicalControlWireLine(element, elements, nQ, customGateDefinitions);
-          if (!line) {
-            return null;
-          }
+          const line = classicalControlWireLine(element, elements, classicalRegs, nQ, customGateDefinitions);
+          const visibleRegisterIndices = exprRegisters(element.condition)
+            .map((registerName) => classicalRegs.findIndex((register) => register.name === registerName))
+            .filter((registerIndex): registerIndex is number => registerIndex >= 0)
+            .sort((left, right) => left - right);
+          const analysis = stepAnalysis[element.step];
+          const inError = analysis.cctrlOrphan || analysis.cctrlMultiple;
+          const selected = selectedIds.includes(element.id);
 
           return (
             <g key={`classical-control-wire-${element.id}`}>
-              <line x1={wireX(element.step) - 2} y1={line.y1} x2={wireX(element.step) - 2} y2={line.y2} stroke={CONNECTOR_BLACK} strokeWidth={2} />
-              <line x1={wireX(element.step) + 2} y1={line.y1} x2={wireX(element.step) + 2} y2={line.y2} stroke={CONNECTOR_BLACK} strokeWidth={2} />
+              {line ? (
+                <>
+                  <line
+                    x1={wireX(element.step) - 2}
+                    y1={line.y1}
+                    x2={wireX(element.step) - 2}
+                    y2={line.y2}
+                    stroke={inError ? ERROR_COLORS.primary : CONNECTOR_BLACK}
+                    strokeWidth={2}
+                  />
+                  <line
+                    x1={wireX(element.step) + 2}
+                    y1={line.y1}
+                    x2={wireX(element.step) + 2}
+                    y2={line.y2}
+                    stroke={inError ? ERROR_COLORS.primary : CONNECTOR_BLACK}
+                    strokeWidth={2}
+                  />
+                </>
+              ) : null}
+              {(visibleRegisterIndices.length > 0 ? visibleRegisterIndices : [element.cregIdx]).map((registerIndex) => (
+                <g key={`classical-control-node-${element.id}-${registerIndex}`}>
+                  {selected ? (
+                    <circle
+                      cx={wireX(element.step)}
+                      cy={cregY(registerIndex, nQ)}
+                      r={12}
+                      fill={UI_COLORS.amber500}
+                      opacity={0.15}
+                    />
+                  ) : null}
+                  <circle
+                    cx={wireX(element.step)}
+                    cy={cregY(registerIndex, nQ)}
+                    r={7}
+                    fill={inError ? ERROR_COLORS.primary : selected ? UI_COLORS.amber500 : CONNECTOR_BLACK}
+                  />
+                </g>
+              ))}
             </g>
           );
         })}

@@ -1,22 +1,48 @@
-import type { COND_OPS, UnitaryGateKind } from "./constants";
-
-export type ConditionOperator = (typeof COND_OPS)[number];
+import type { UnitaryGateKind } from "./constants";
 
 export interface ClassicalRegister {
   id: number;
   name: string;
 }
 
-export interface ComparisonCondition {
-  kind: "comparison";
-  registerName: string;
-  operator: ConditionOperator;
+export interface IntExpr {
+  kind: "int";
   value: number;
 }
 
-// The current UI only edits simple register comparisons, but this is intentionally
-// modeled as a condition object so it can later grow into a richer expression tree.
-export type ClassicalCondition = ComparisonCondition;
+export interface FloatExpr {
+  kind: "float";
+  value: number;
+}
+
+export interface BoolExpr {
+  kind: "bool";
+  value: boolean;
+}
+
+export interface RegisterExpr {
+  kind: "reg";
+  name: string;
+}
+
+export interface NotExpr {
+  kind: "not";
+  expr: Expr;
+}
+
+export interface BinaryExpr {
+  kind: "and" | "or" | "xor" | "add" | "sub" | "mul" | "div" | "rem" | "eq" | "lt";
+  left: Expr;
+  right: Expr;
+}
+
+export type Expr =
+  | IntExpr
+  | FloatExpr
+  | BoolExpr
+  | RegisterExpr
+  | NotExpr
+  | BinaryExpr;
 
 export interface BaseElement {
   id: number;
@@ -65,7 +91,7 @@ export interface CustomGateElement extends BaseElement {
 export interface ClassicalControlElement extends BaseElement {
   type: "cctrl";
   cregIdx: number;
-  condition: ClassicalCondition;
+  condition: Expr;
 }
 
 export type QuantumRenderableElement =
@@ -179,9 +205,7 @@ export interface SerializedGate {
 
 export interface SerializedCondition {
   step: number;
-  reg: string;
-  op: ConditionOperator;
-  val: number;
+  expr: Expr;
 }
 
 export interface SerializedCustomGateOperation {

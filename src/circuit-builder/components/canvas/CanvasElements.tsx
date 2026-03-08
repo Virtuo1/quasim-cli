@@ -1,6 +1,6 @@
 import { CONNECTOR_BLACK, ERROR_COLORS, GB, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS, unitaryGateSupportsParam } from "../../constants";
 import type { CircuitElement, CustomGateDefinition } from "../../types";
-import { describeCondition } from "../../utils/conditions";
+import { describeExprCompact, exprRegisters } from "../../utils/conditions";
 import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
 
@@ -11,6 +11,7 @@ export function ElementNode({
   inError,
   onPointerDown,
   nQ,
+  classicalRegs = [],
   customGateDefinitions = [],
 }: {
   element: CircuitElement;
@@ -19,6 +20,7 @@ export function ElementNode({
   inError: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   nQ: number;
+  classicalRegs?: { id: number; name: string }[];
   customGateDefinitions?: CustomGateDefinition[];
 }) {
   const cx = wireX(element.step);
@@ -56,17 +58,29 @@ export function ElementNode({
   }
 
   if (element.type === "cctrl") {
-    const cy = cregY(element.cregIdx, nQ);
-    const color = inError ? errorColor : selected ? UI_COLORS.amber500 : CONNECTOR_BLACK;
+    const registerIndices = exprRegisters(element.condition)
+      .map((registerName) => classicalRegs.findIndex((register) => register.name === registerName))
+      .filter((index): index is number => index >= 0);
+    const topRegisterIndex = registerIndices.length > 0 ? Math.min(...registerIndices) : element.cregIdx;
+    const bottomRegisterIndex = registerIndices.length > 0 ? Math.max(...registerIndices) : element.cregIdx;
+    const topY = cregY(topRegisterIndex, nQ) - 18;
+    const boxHeight = cregY(bottomRegisterIndex, nQ) - cregY(topRegisterIndex, nQ) + 36;
     return (
       <g {...ops}>
-        <rect x={cx - 14} y={cy - 18} width={28} height={36} fill="transparent" />
-        {selected ? <circle cx={cx} cy={cy} r={12} fill={UI_COLORS.amber500} opacity={0.15} /> : null}
-        <circle cx={cx} cy={cy} r={7} fill={color} />
-        <text x={cx} y={cy + 17} textAnchor="middle" fontSize={8} fontFamily="monospace" fill={UI_COLORS.slate600} fontWeight={600}>
-          {describeCondition(element.condition).replace(`${element.condition.registerName} `, "")}
+        <rect x={cx - 16} y={topY} width={32} height={boxHeight} fill="transparent" />
+        {selected ? <rect x={cx - 18} y={topY - 3} width={36} height={boxHeight + 6} rx={4} fill={UI_COLORS.amber500} opacity={0.12} /> : null}
+        <text
+          x={cx}
+          y={cregY(bottomRegisterIndex, nQ) + 17}
+          textAnchor="middle"
+          fontSize={8}
+          fontFamily="monospace"
+          fill={inError ? errorColor : UI_COLORS.slate600}
+          fontWeight={600}
+        >
+          {describeExprCompact(element.condition, 10)}
         </text>
-        {inError ? <text x={cx + 10} y={cy - 8} fontSize={10} fill={errorColor} fontWeight="bold">!</text> : null}
+        {inError ? <text x={cx + 12} y={topY + 10} fontSize={10} fill={errorColor} fontWeight="bold">!</text> : null}
       </g>
     );
   }

@@ -2,8 +2,8 @@ import { unitaryGateExpectedParameters } from "../constants";
 import type {
   CircuitElement,
   ClassicalControlElement,
-  ClassicalCondition,
   DragGhostState,
+  Expr,
   PaletteDragSpec,
 } from "../types";
 import { uid } from "../utils/layout";
@@ -73,7 +73,7 @@ export function createElementFromPalette(
 export function createClassicalControlElement(
   step: number,
   cregIdx: number,
-  condition: ClassicalCondition,
+  condition: Expr,
 ): ClassicalControlElement {
   return {
     id: uid(),

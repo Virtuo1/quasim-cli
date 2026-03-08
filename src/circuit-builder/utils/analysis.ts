@@ -10,6 +10,7 @@ import type {
   ResetElement,
   StepAnalysis,
 } from "../types";
+import { exprRegisters } from "./conditions";
 import { cregY, wireY } from "./layout";
 import { customGateOccupiedQubits } from "./customGates";
 
@@ -220,6 +221,7 @@ export function measurementWireLine(
 export function classicalControlWireLine(
   control: ClassicalControlElement,
   elements: CircuitElement[],
+  classicalRegs: ClassicalRegister[],
   nQ: number,
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
@@ -249,8 +251,18 @@ export function classicalControlWireLine(
       return [element.qubit];
     }),
   );
+  const referencedRegisterIndices = exprRegisters(control.condition)
+    .map((registerName) => classicalRegs.findIndex((register) => register.name === registerName))
+    .filter((index): index is number => index >= 0)
+    .sort((a, b) => a - b);
+  const registerIndices =
+    referencedRegisterIndices.length > 0
+      ? referencedRegisterIndices
+      : [control.cregIdx];
+
   return {
-    y1: cregY(control.cregIdx, nQ) - 7,
+    registerIndices,
+    y1: cregY(Math.max(...registerIndices), nQ) - 7,
     y2: wireY(topTargetQubit),
   };
 }
