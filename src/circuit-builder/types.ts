@@ -5,44 +5,55 @@ export interface ClassicalRegister {
   name: string;
 }
 
-export interface IntExpr {
-  kind: "int";
-  value: number;
-}
+/**
+ * Expression types
+ * Mirrors the Rust enum shape:
+ * Expr::Val(Value) | Expr::Reg(String) | Expr::Not(Box<Expr>) | ...
+ */
 
-export interface FloatExpr {
-  kind: "float";
-  value: number;
-}
+export type ExprValue =
+  | { Int: number }
+  | { Float: number }
+  | { Bool: boolean };
 
-export interface BoolExpr {
-  kind: "bool";
-  value: boolean;
-}
-
-export interface RegisterExpr {
-  kind: "reg";
-  name: string;
-}
-
-export interface NotExpr {
-  kind: "not";
-  expr: Expr;
-}
-
-export interface BinaryExpr {
-  kind: "and" | "or" | "xor" | "add" | "sub" | "mul" | "div" | "rem" | "eq" | "lt";
-  left: Expr;
-  right: Expr;
-}
+export type BinaryExpr =
+  | { And: [Expr, Expr] }
+  | { Or: [Expr, Expr] }
+  | { Xor: [Expr, Expr] }
+  | { Add: [Expr, Expr] }
+  | { Sub: [Expr, Expr] }
+  | { Mul: [Expr, Expr] }
+  | { Div: [Expr, Expr] }
+  | { Rem: [Expr, Expr] }
+  | { Eq: [Expr, Expr] }
+  | { Lt: [Expr, Expr] };
 
 export type Expr =
-  | IntExpr
-  | FloatExpr
-  | BoolExpr
-  | RegisterExpr
-  | NotExpr
+  | { Val: ExprValue }
+  | { Reg: string }
+  | { Not: Expr }
   | BinaryExpr;
+
+export type ExprKind =
+  | "int"
+  | "float"
+  | "bool"
+  | "reg"
+  | "not"
+  | "and"
+  | "or"
+  | "xor"
+  | "add"
+  | "sub"
+  | "mul"
+  | "div"
+  | "rem"
+  | "eq"
+  | "lt";
+
+/**
+ * Element types
+ */
 
 export interface BaseElement {
   id: number;
@@ -102,7 +113,12 @@ export interface ClassicalControlElement extends BaseElement {
   condition: Expr;
 }
 
-export type QuantumRenderableElement =
+export type GroupableElement =
+  | ControlElement
+  | SwapElement
+  | UnitaryGateElement;
+
+export type CircuitElement =
   | ControlElement
   | SwapElement
   | UnitaryGateElement
@@ -112,11 +128,16 @@ export type QuantumRenderableElement =
   | JumpElement
   | CustomGateElement;
 
-export type GroupableElement = ControlElement | SwapElement | UnitaryGateElement;
+export type RegisterElement =
+  ClassicalControlElement;
 
-export type CircuitElement =
-  | QuantumRenderableElement
-  | ClassicalControlElement;
+export type CanvasElement =
+  | CircuitElement
+  | RegisterElement;
+
+/**
+ * Types for canvas drawing and analysis
+ */
 
 export interface QuantumConnectorLine {
   kind: "quantum";
@@ -180,6 +201,17 @@ export type CanvasHit =
   | { zone: "qubit"; step: number; qubit: number; insertAt?: number }
   | { zone: "creg"; step: number; cregIdx: number; cregName: string; insertAt?: number };
 
+export interface SelectionBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Modal states
+ */
+
 export interface ParameterModalState {
   id: number;
   values: number[];
@@ -205,14 +237,11 @@ export interface CustomGateModalState {
   suggestedName?: string;
 }
 
-export interface SelectionBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+/**
+ * Gate definition types
+ */
 
-export interface SerializedGate {
+export interface OperationDefinition {
   step: number;
   type: UnitaryGateKind | "SWAP" | "M" | "ASSIGN" | "RESET" | "JUMP" | "CUSTOM";
   qubit?: number;
@@ -226,23 +255,26 @@ export interface SerializedGate {
   expr?: Expr;
 }
 
-export interface SerializedCondition {
-  step: number;
-  expr: Expr;
+export interface CustomGateDefinition {
+  id: number;
+  classifier: string;
+  gates: OperationDefinition[];
+  minQubit: number;
+  maxQubit: number;
 }
 
-export interface SerializedCustomGateOperation {
-  step: number;
-  type: UnitaryGateKind | "SWAP";
-  qubit?: number;
-  qubits?: number[];
-  controls?: number[];
-  params?: number[];
-}
+/**
+ * Serialization types
+ */
 
 export interface SerializedCustomGateDefinition {
   classifier: string;
-  gates: SerializedCustomGateOperation[];
+  gates: OperationDefinition[];
+}
+
+export interface SerializedCondition {
+  step: number;
+  expr: Expr;
 }
 
 export interface SerializedCircuit {
@@ -250,14 +282,6 @@ export interface SerializedCircuit {
   steps?: number;
   classicalRegisters?: string[];
   customGates?: SerializedCustomGateDefinition[];
-  gates?: SerializedGate[];
+  instructions?: OperationDefinition[];
   conditions?: SerializedCondition[];
-}
-
-export interface CustomGateDefinition {
-  id: number;
-  classifier: string;
-  gates: SerializedCustomGateOperation[];
-  minQubit: number;
-  maxQubit: number;
 }

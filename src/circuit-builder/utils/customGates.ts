@@ -1,18 +1,18 @@
 import type {
-  CircuitElement,
+  CanvasElement,
   CustomGateDefinition,
   CustomGateElement,
   GroupableElement,
   SerializedCustomGateDefinition,
-  SerializedCustomGateOperation,
+  OperationDefinition,
 } from "../types";
 
-export function isGroupableQuantumElement(element: CircuitElement): element is GroupableElement {
+export function isGroupableQuantumElement(element: CanvasElement): element is GroupableElement {
   return element.type === "ctrl" || element.type === "swap" || element.type === "unitary";
 }
 
 export function elementOccupiedQubits(
-  element: CircuitElement,
+  element: CanvasElement,
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
   if (element.type === "cctrl") {
@@ -34,8 +34,8 @@ export function elementOccupiedQubits(
 }
 
 export function canCreateCustomGate(
-  elements: CircuitElement[],
-  allElements: CircuitElement[] = elements,
+  elements: CanvasElement[],
+  allElements: CanvasElement[] = elements,
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
   if (elements.length === 0) {
@@ -143,11 +143,11 @@ export function deserializeCustomGateDefinitions(
 
 function buildRelativeOperations(
   elements: GroupableElement[],
-): SerializedCustomGateOperation[] | { reason: string } {
+): OperationDefinition[] | { reason: string } {
   const steps = [...new Set(elements.map((element) => element.step))].sort((a, b) => a - b);
   const minStep = Math.min(...steps);
   const minQubit = Math.min(...elements.map((element) => element.qubit));
-  const operations: SerializedCustomGateOperation[] = [];
+  const operations: OperationDefinition[] = [];
 
   for (const step of steps) {
     const stepElements = elements.filter((element) => element.step === step);
@@ -194,7 +194,7 @@ function buildRelativeOperations(
   return operations;
 }
 
-function getOperationQubitBounds(gates: SerializedCustomGateOperation[]) {
+function getOperationQubitBounds(gates: OperationDefinition[]) {
   const qubits = gates.flatMap((gate) => [
     ...(gate.controls ?? []),
     ...(typeof gate.qubit === "number" ? [gate.qubit] : []),

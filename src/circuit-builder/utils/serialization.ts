@@ -1,7 +1,15 @@
-import type { CircuitElement, ClassicalRegister, CustomGateDefinition, SerializedCondition, SerializedCircuit, SerializedGate } from "../types";
+import type {
+  CanvasElement,
+  ClassicalRegister,
+  CustomGateDefinition,
+  OperationDefinition,
+  SerializedCondition,
+  SerializedCircuit,
+} from "../types";
 import { uid } from "./layout";
 import { analyzeStep } from "./analysis";
 import { deserializeCustomGateDefinitions, serializeCustomGateDefinitions } from "./customGates";
+import { exprRegisters } from "./conditions";
 
 export function exportCircuitToFile({
   qubits,
@@ -13,10 +21,10 @@ export function exportCircuitToFile({
   qubits: number;
   steps: number;
   classicalRegisters: ClassicalRegister[];
-  elements: CircuitElement[];
+  elements: CanvasElement[];
   customGateDefinitions: CustomGateDefinition[];
 }) {
-  const gates: SerializedGate[] = [];
+  const gates: OperationDefinition[] = [];
   const conditions: SerializedCondition[] = [];
 
   for (let step = 0; step < steps; step += 1) {
@@ -39,7 +47,7 @@ export function exportCircuitToFile({
     }
 
     for (const gate of unitaryGates) {
-      const operation: SerializedGate = { step, type: gate.kind, qubit: gate.qubit };
+      const operation: OperationDefinition = { step, type: gate.kind, qubit: gate.qubit };
       if (controls.length > 0) {
         operation.controls = controls;
       }
@@ -50,7 +58,7 @@ export function exportCircuitToFile({
     }
 
     for (const measurement of measurements) {
-      const operation: SerializedGate = { step, type: "M", qubit: measurement.qubit };
+      const operation: OperationDefinition = { step, type: "M", qubit: measurement.qubit };
       if (controls.length > 0) {
         operation.controls = controls;
       }
@@ -64,7 +72,7 @@ export function exportCircuitToFile({
     }
 
     for (const assign of assigns) {
-      const operation: SerializedGate = { step, type: "ASSIGN", qubit: assign.qubit, expr: assign.expr };
+      const operation: OperationDefinition = { step, type: "ASSIGN", qubit: assign.qubit, expr: assign.expr };
       if (controls.length > 0) {
         operation.controls = controls;
       }
@@ -75,7 +83,7 @@ export function exportCircuitToFile({
     }
 
     for (const reset of resets) {
-      const operation: SerializedGate = { step, type: "RESET", qubit: reset.qubit };
+      const operation: OperationDefinition = { step, type: "RESET", qubit: reset.qubit };
       if (controls.length > 0) {
         operation.controls = controls;
       }
@@ -87,7 +95,7 @@ export function exportCircuitToFile({
         continue;
       }
 
-      const operation: SerializedGate = {
+      const operation: OperationDefinition = {
         step,
         type: "JUMP",
         targetStep: jump.targetStep,
@@ -96,7 +104,7 @@ export function exportCircuitToFile({
     }
 
     for (const custom of customs) {
-      const operation: SerializedGate = {
+      const operation: OperationDefinition = {
         step,
         type: "CUSTOM",
         classifier: custom.classifier,
@@ -109,7 +117,7 @@ export function exportCircuitToFile({
     }
 
     if (swaps.length === 2) {
-      const operation: SerializedGate = {
+      const operation: OperationDefinition = {
         step,
         type: "SWAP",
         qubits: swaps.map((element) => element.qubit).sort((a, b) => a - b),
@@ -126,7 +134,7 @@ export function exportCircuitToFile({
     steps,
     classicalRegisters: classicalRegisters.map((register) => register.name),
     customGates: serializeCustomGateDefinitions(customGateDefinitions),
-    gates,
+    instructions: gates,
     conditions,
   };
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
@@ -140,11 +148,11 @@ export function exportCircuitToFile({
 export function deserializeCircuit(raw: SerializedCircuit) {
   const customGateDefinitions = deserializeCustomGateDefinitions(raw.customGates, uid);
   const classicalRegs = (raw.classicalRegisters ?? []).map((name) => ({ id: uid(), name }));
-  const elements: CircuitElement[] = [];
+  const elements: CanvasElement[] = [];
   const usedCtrls = new Set<string>();
   const usedCctrl = new Set<string>();
 
-  for (const gate of raw.gates ?? []) {
+  for (const gate of raw.instructions ?? []) {
     if (gate.type === "SWAP") {
       for (const qubit of gate.qubits ?? []) {
         elements.push({ id: uid(), type: "swap", step: gate.step, qubit });
@@ -173,7 +181,7 @@ export function deserializeCircuit(raw: SerializedCircuit) {
         step: gate.step,
         qubit: gate.qubit,
         registerName: gate.creg ?? null,
-        expr: gate.expr ?? { kind: "int", value: 0 },
+        expr: gate.expr ?? { Val: { Int: 0 } },
       });
     } else if (gate.type === "RESET" && typeof gate.qubit === "number") {
       elements.push({
@@ -222,7 +230,7 @@ export function deserializeCircuit(raw: SerializedCircuit) {
     }
 
     usedCctrl.add(key);
-    const conditionRegisters = extractConditionRegisters(condition.expr);
+    const conditionRegisters = exprRegisters(condition.expr);
     const regIndex = classicalRegs.findIndex((register) => register.name === conditionRegisters[0]);
     if (regIndex >= 0) {
       elements.push({
@@ -241,26 +249,4 @@ export function deserializeCircuit(raw: SerializedCircuit) {
     customGateDefinitions,
     elements,
   };
-}
-
-function extractConditionRegisters(expr: SerializedCondition["expr"]): string[] {
-  switch (expr.kind) {
-    case "reg":
-      return expr.name ? [expr.name] : [];
-    case "not":
-      return extractConditionRegisters(expr.expr);
-    case "and":
-    case "or":
-    case "xor":
-    case "add":
-    case "sub":
-    case "mul":
-    case "div":
-    case "rem":
-    case "eq":
-    case "lt":
-      return [...extractConditionRegisters(expr.left), ...extractConditionRegisters(expr.right)];
-    default:
-      return [];
-  }
 }

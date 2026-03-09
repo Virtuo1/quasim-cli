@@ -1,5 +1,5 @@
 import { CONNECTOR_BLACK, CW, ERROR_COLORS, UI_COLORS, LW, PX, PY } from "../../constants";
-import type { CircuitElement, ClassicalRegister, CustomGateDefinition, QuantumConnectorLine, StepAnalysisMap } from "../../types";
+import type { CanvasElement, ClassicalRegister, CustomGateDefinition, QuantumConnectorLine, StepAnalysisMap } from "../../types";
 import { classicalControlWireLine, measurementWireLine } from "../../utils/circuit";
 import { exprRegisters } from "../../utils/conditions";
 import { cregY, wireX, wireY } from "../../utils/layout";
@@ -53,9 +53,9 @@ export function QuantumConnectorLines({
   getConnectorLines,
 }: {
   nS: number;
-  elements: CircuitElement[];
+  elements: CanvasElement[];
   customGateDefinitions: CustomGateDefinition[];
-  getConnectorLines: (stepEls: CircuitElement[], customGateDefinitions?: CustomGateDefinition[]) => QuantumConnectorLine[];
+  getConnectorLines: (stepEls: CanvasElement[], customGateDefinitions?: CustomGateDefinition[]) => QuantumConnectorLine[];
 }) {
   return (
     <>
@@ -78,15 +78,15 @@ export function QuantumConnectorLines({
   );
 }
 
-export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: CircuitElement[]; classicalRegs: ClassicalRegister[]; nQ: number }) {
-  const stepWriteGroups = new Map<number, Extract<CircuitElement, { type: "measurement" | "assign" }>[]>();
+export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: CanvasElement[]; classicalRegs: ClassicalRegister[]; nQ: number }) {
+  const stepWriteGroups = new Map<number, Extract<CanvasElement, { type: "measurement" | "assign" }>[]>();
   const groupedWriteIds = new Set<number>();
 
   elements
     .filter(
       (
         element,
-      ): element is Extract<CircuitElement, { type: "measurement" | "assign" }> =>
+      ): element is Extract<CanvasElement, { type: "measurement" | "assign" }> =>
         (element.type === "measurement" || element.type === "assign") && !!element.registerName,
     )
     .forEach((element) => {
@@ -110,7 +110,7 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
             (
               entry,
             ): entry is {
-              element: Extract<CircuitElement, { type: "measurement" | "assign" }>;
+              element: Extract<CanvasElement, { type: "measurement" | "assign" }>;
               line: NonNullable<ReturnType<typeof measurementWireLine>>;
             } => entry.line != null,
           )
@@ -207,7 +207,7 @@ export function MeasurementWires({ elements, classicalRegs, nQ }: { elements: Ci
         .filter(
           (
             el,
-          ): el is Extract<CircuitElement, { type: "measurement" | "assign" }> =>
+          ): el is Extract<CanvasElement, { type: "measurement" | "assign" }> =>
             (el.type === "measurement" || el.type === "assign") && !!el.registerName,
         )
         .map((element) => {
@@ -254,7 +254,7 @@ export function ClassicalControlWires({
   customGateDefinitions,
   stepAnalysis,
 }: {
-  elements: CircuitElement[];
+  elements: CanvasElement[];
   classicalRegs: ClassicalRegister[];
   selectedIds: number[];
   nQ: number;
@@ -264,7 +264,7 @@ export function ClassicalControlWires({
   return (
     <>
       {elements
-        .filter((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.type === "cctrl")
+        .filter((el): el is Extract<CanvasElement, { type: "cctrl" }> => el.type === "cctrl")
         .map((element) => {
           const line = classicalControlWireLine(element, elements, classicalRegs, nQ, customGateDefinitions);
           const visibleRegisterIndices = exprRegisters(element.condition)

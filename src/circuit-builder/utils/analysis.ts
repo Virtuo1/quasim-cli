@@ -1,7 +1,7 @@
 import { GB, MAX_CREG_BIT_INDEX, MIN_STEPS } from "../constants";
 import type {
   AssignElement,
-  CircuitElement,
+  CanvasElement,
   ClassicalRegister,
   ClassicalControlElement,
   CustomGateDefinition,
@@ -15,7 +15,7 @@ import { exprRegisters, validateConditionExpression } from "./conditions";
 import { cregY, wireY } from "./layout";
 import { customGateOccupiedQubits } from "./customGates";
 
-export function compact(elements: CircuitElement[]) {
+export function compact(elements: CanvasElement[]) {
   if (elements.length === 0) {
     return { elements: [], nS: MIN_STEPS };
   }
@@ -43,12 +43,12 @@ export function compact(elements: CircuitElement[]) {
       step: nextStep,
       targetStep: Math.max(0, Math.min(compactedTarget, Math.max(occupiedSteps.length - 1, 0))),
     };
-  }) as CircuitElement[];
+  }) as CanvasElement[];
   return { elements: remapped, nS: Math.max(MIN_STEPS, occupiedSteps.length + 1) };
 }
 
 export function cellTaken(
-  elements: CircuitElement[],
+  elements: CanvasElement[],
   step: number,
   qubit: number,
   customGateDefinitions: CustomGateDefinition[] = [],
@@ -72,18 +72,18 @@ export function cellTaken(
 }
 
 export function analyzeStep(
-  stepElements: CircuitElement[],
+  stepElements: CanvasElement[],
   customGateDefinitions: CustomGateDefinition[] = [],
 ): StepAnalysis {
-  const swaps = stepElements.filter((element): element is Extract<CircuitElement, { type: "swap" }> => element.type === "swap");
-  const ctrls = stepElements.filter((element): element is Extract<CircuitElement, { type: "ctrl" }> => element.type === "ctrl");
-  const unitaryGates = stepElements.filter((element): element is Extract<CircuitElement, { type: "unitary" }> => element.type === "unitary");
+  const swaps = stepElements.filter((element): element is Extract<CanvasElement, { type: "swap" }> => element.type === "swap");
+  const ctrls = stepElements.filter((element): element is Extract<CanvasElement, { type: "ctrl" }> => element.type === "ctrl");
+  const unitaryGates = stepElements.filter((element): element is Extract<CanvasElement, { type: "unitary" }> => element.type === "unitary");
   const measurements = stepElements.filter((element): element is MeasurementElement => element.type === "measurement");
   const assigns = stepElements.filter((element): element is AssignElement => element.type === "assign");
   const resets = stepElements.filter((element): element is ResetElement => element.type === "reset");
   const jumps = stepElements.filter((element): element is JumpElement => element.type === "jump");
-  const customs = stepElements.filter((element): element is Extract<CircuitElement, { type: "custom" }> => element.type === "custom");
-  const cctrl = stepElements.filter((element): element is Extract<CircuitElement, { type: "cctrl" }> => element.type === "cctrl");
+  const customs = stepElements.filter((element): element is Extract<CanvasElement, { type: "custom" }> => element.type === "custom");
+  const cctrl = stepElements.filter((element): element is Extract<CanvasElement, { type: "cctrl" }> => element.type === "cctrl");
 
   const classicalOps = measurements.length + assigns.length + resets.length;
   const hasQuantumTargets = unitaryGates.length + swaps.length + measurements.length + assigns.length + resets.length + jumps.length + customs.length > 0;
@@ -209,12 +209,12 @@ function findRegisterWriteConflictIds(measurements: MeasurementElement[], assign
   return [...conflictingIds];
 }
 
-export function getConnectorLines(stepElements: CircuitElement[]): QuantumConnectorLine[] {
+export function getConnectorLines(stepElements: CanvasElement[]): QuantumConnectorLine[] {
   return getConnectorLinesWithCustoms(stepElements);
 }
 
 export function getConnectorLinesWithCustoms(
-  stepElements: CircuitElement[],
+  stepElements: CanvasElement[],
   customGateDefinitions: CustomGateDefinition[] = [],
 ): QuantumConnectorLine[] {
   const { swaps, ctrls, unitaryGates, measurements, assigns, resets, customs, cctrl, swapError, ctrlOrphan, ctrlOnClassicalOp, ctrlOnCustom, overlapError } =
@@ -297,13 +297,13 @@ export function measurementWireLine(
 
 export function classicalControlWireLine(
   control: ClassicalControlElement,
-  elements: CircuitElement[],
+  elements: CanvasElement[],
   classicalRegs: ClassicalRegister[],
   nQ: number,
   customGateDefinitions: CustomGateDefinition[] = [],
 ) {
   const stepTargets = elements.filter(
-    (element): element is Extract<CircuitElement, { type: "unitary" | "measurement" | "assign" | "reset" | "swap" | "jump" | "custom" }> =>
+    (element): element is Extract<CanvasElement, { type: "unitary" | "measurement" | "assign" | "reset" | "swap" | "jump" | "custom" }> =>
       element.step === control.step &&
       (element.type === "unitary" ||
         element.type === "measurement" ||
@@ -346,7 +346,7 @@ export function classicalControlWireLine(
 }
 
 function findOverlappingElementIds(
-  stepElements: CircuitElement[],
+  stepElements: CanvasElement[],
   customGateDefinitions: CustomGateDefinition[],
 ) {
   const occupiedByQubit = new Map<number, number[]>();

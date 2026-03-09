@@ -1,6 +1,6 @@
 import { unitaryGateExpectedParameters } from "../constants";
 import type {
-  CircuitElement,
+  CanvasElement,
   ClassicalControlElement,
   DragGhostState,
   Expr,
@@ -13,7 +13,7 @@ export function createElementFromPalette(
   spec: PaletteDragSpec,
   step: number,
   qubit: number,
-): CircuitElement {
+): CanvasElement {
   if (spec.type === "unitary") {
     return {
       id: uid(),
@@ -98,7 +98,7 @@ export function createClassicalControlElement(
 }
 
 export function createDragGhostFromElement(
-  element: CircuitElement,
+  element: CanvasElement,
   clientX: number,
   clientY: number,
 ): DragGhostState {

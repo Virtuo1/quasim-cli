@@ -1,30 +1,97 @@
-import type { BinaryExpr, Expr } from "../types";
+import type { Expr, ExprKind } from "../types";
 
 export type ExprValueType = "int" | "float" | "bool" | "numeric" | "unknown";
 export type ComparisonBuilderOperator = "==" | "!=" | "<" | "<=" | ">" | ">=";
+export type BinaryExprKind = Exclude<ExprKind, "int" | "float" | "bool" | "reg" | "not">;
+
+const BINARY_EXPR_KEYS = {
+  and: "And",
+  or: "Or",
+  xor: "Xor",
+  add: "Add",
+  sub: "Sub",
+  mul: "Mul",
+  div: "Div",
+  rem: "Rem",
+  eq: "Eq",
+  lt: "Lt",
+} as const satisfies Record<BinaryExprKind, string>;
+
+const BINARY_EXPR_SYMBOLS = {
+  and: "&",
+  or: "|",
+  xor: "^",
+  add: "+",
+  sub: "-",
+  mul: "*",
+  div: "/",
+  rem: "%",
+  eq: "==",
+  lt: "<",
+} as const satisfies Record<BinaryExprKind, string>;
+
+const BINARY_KINDS = Object.keys(BINARY_EXPR_KEYS) as BinaryExprKind[];
 
 export function intExpr(value = 0): Expr {
-  return { kind: "int", value };
+  return { Val: { Int: value } };
 }
 
 export function floatExpr(value = 0): Expr {
-  return { kind: "float", value };
+  return { Val: { Float: value } };
 }
 
 export function boolExpr(value = false): Expr {
-  return { kind: "bool", value };
+  return { Val: { Bool: value } };
 }
 
 export function registerExpr(name: string): Expr {
-  return { kind: "reg", name };
+  return { Reg: name };
 }
 
 export function notExpr(expr: Expr): Expr {
-  return { kind: "not", expr };
+  return { Not: expr };
 }
 
-export function binaryExpr(kind: BinaryExpr["kind"], left: Expr, right: Expr): Expr {
-  return { kind, left, right };
+export function binaryExpr(kind: BinaryExprKind, left: Expr, right: Expr): Expr {
+  return { [BINARY_EXPR_KEYS[kind]]: [left, right] } as Expr;
+}
+
+export function getExprKind(expr: Expr): ExprKind {
+  if ("Val" in expr) {
+    if ("Int" in expr.Val) {
+      return "int";
+    }
+    if ("Float" in expr.Val) {
+      return "float";
+    }
+    return "bool";
+  }
+  if ("Reg" in expr) {
+    return "reg";
+  }
+  if ("Not" in expr) {
+    return "not";
+  }
+  for (const kind of BINARY_KINDS) {
+    if (BINARY_EXPR_KEYS[kind] in expr) {
+      return kind;
+    }
+  }
+  return "lt";
+}
+
+export function getNotOperand(expr: Expr): Expr | null {
+  return "Not" in expr ? expr.Not : null;
+}
+
+export function getBinaryOperands(expr: Expr): [Expr, Expr] | null {
+  const key = getBinaryExprKey(expr);
+  return key ? (expr as Record<string, [Expr, Expr]>)[key] : null;
+}
+
+export function isLeafExpr(expr: Expr) {
+  const kind = getExprKind(expr);
+  return kind === "reg" || kind === "int" || kind === "float" || kind === "bool";
 }
 
 export function createDefaultConditionExpression(registerName: string): Expr {
@@ -49,36 +116,21 @@ export function comparisonExpr(operator: ComparisonBuilderOperator, left: Expr, 
 }
 
 export function describeExpr(expr: Expr): string {
-  switch (expr.kind) {
+  const kind = getExprKind(expr);
+  switch (kind) {
     case "int":
     case "float":
-      return String(expr.value);
+      return String(getNumberValue(expr));
     case "bool":
-      return expr.value ? "true" : "false";
+      return getBoolValue(expr) ? "true" : "false";
     case "reg":
-      return expr.name;
+      return getRegisterName(expr);
     case "not":
-      return `!${wrapExpr(expr.expr)}`;
-    case "and":
-      return `${wrapExpr(expr.left)} & ${wrapExpr(expr.right)}`;
-    case "or":
-      return `${wrapExpr(expr.left)} | ${wrapExpr(expr.right)}`;
-    case "xor":
-      return `${wrapExpr(expr.left)} ^ ${wrapExpr(expr.right)}`;
-    case "add":
-      return `${wrapExpr(expr.left)} + ${wrapExpr(expr.right)}`;
-    case "sub":
-      return `${wrapExpr(expr.left)} - ${wrapExpr(expr.right)}`;
-    case "mul":
-      return `${wrapExpr(expr.left)} * ${wrapExpr(expr.right)}`;
-    case "div":
-      return `${wrapExpr(expr.left)} / ${wrapExpr(expr.right)}`;
-    case "rem":
-      return `${wrapExpr(expr.left)} % ${wrapExpr(expr.right)}`;
-    case "eq":
-      return `${wrapExpr(expr.left)} == ${wrapExpr(expr.right)}`;
-    case "lt":
-      return `${wrapExpr(expr.left)} < ${wrapExpr(expr.right)}`;
+      return `!${wrapExpr(getNotOperand(expr)!)}`;
+    default: {
+      const [left, right] = getBinaryOperands(expr)!;
+      return `${wrapExpr(left)} ${BINARY_EXPR_SYMBOLS[kind as BinaryExprKind]} ${wrapExpr(right)}`;
+    }
   }
 }
 
@@ -101,7 +153,7 @@ export function rebindConditionAnchor(expr: Expr, fromRegister: string, toRegist
   return expr;
 }
 
-export function defaultExprForKind(kind: Expr["kind"]): Expr {
+export function defaultExprForKind(kind: ExprKind): Expr {
   switch (kind) {
     case "int":
       return intExpr(0);
@@ -129,26 +181,24 @@ export function defaultExprForKind(kind: Expr["kind"]): Expr {
   }
 }
 
-export function replaceExprKind(expr: Expr, nextKind: Expr["kind"], fallbackRegister: string | null): Expr {
+export function replaceExprKind(expr: Expr, nextKind: ExprKind, fallbackRegister: string | null): Expr {
   const next = defaultExprForKind(nextKind);
-  if (next.kind === "reg") {
+  if (nextKind === "reg") {
     return registerExpr(fallbackRegister ?? "");
   }
 
-  if (expr.kind === "not" && next.kind === "not") {
+  if (getExprKind(expr) === "not" && nextKind === "not") {
     return expr;
   }
 
-  if ("left" in expr && "left" in next) {
-    return {
-      ...next,
-      left: expr.left,
-      right: expr.right,
-    };
+  const currentOperands = getBinaryOperands(expr);
+  const nextOperands = getBinaryOperands(next);
+  if (currentOperands && nextOperands) {
+    return binaryExpr(nextKind as BinaryExprKind, currentOperands[0], currentOperands[1]);
   }
 
-  if (expr.kind === "not" && next.kind === "not") {
-    return { kind: "not", expr: expr.expr };
+  if (getExprKind(expr) === "not" && nextKind === "not") {
+    return notExpr(getNotOperand(expr)!);
   }
 
   return next;
@@ -159,13 +209,21 @@ export function getExprAtPath(root: Expr, path: string): Expr | null {
   let current: Expr = root;
 
   for (const segment of segments) {
-    if (segment === "expr" && current.kind === "not") {
-      current = current.expr;
+    if (segment === "expr") {
+      const inner = getNotOperand(current);
+      if (!inner) {
+        return null;
+      }
+      current = inner;
       continue;
     }
 
-    if ((segment === "left" || segment === "right") && "left" in current) {
-      current = current[segment];
+    if (segment === "left" || segment === "right") {
+      const operands = getBinaryOperands(current);
+      if (!operands) {
+        return null;
+      }
+      current = operands[segment === "left" ? 0 : 1];
       continue;
     }
 
@@ -198,7 +256,8 @@ export function validateExpression(expr: Expr): string[] {
 }
 
 export function inferExprType(expr: Expr): ExprValueType {
-  switch (expr.kind) {
+  const kind = getExprKind(expr);
+  switch (kind) {
     case "int":
       return "int";
     case "float":
@@ -208,7 +267,7 @@ export function inferExprType(expr: Expr): ExprValueType {
     case "reg":
       return "unknown";
     case "not": {
-      const innerType = inferExprType(expr.expr);
+      const innerType = inferExprType(getNotOperand(expr)!);
       if (innerType === "bool" || innerType === "int") {
         return innerType;
       }
@@ -217,8 +276,9 @@ export function inferExprType(expr: Expr): ExprValueType {
     case "and":
     case "or":
     case "xor": {
-      const leftType = inferExprType(expr.left);
-      const rightType = inferExprType(expr.right);
+      const [left, right] = getBinaryOperands(expr)!;
+      const leftType = inferExprType(left);
+      const rightType = inferExprType(right);
       if (leftType === "bool" && rightType === "bool") {
         return "bool";
       }
@@ -243,8 +303,10 @@ export function inferExprType(expr: Expr): ExprValueType {
     case "sub":
     case "mul":
     case "div":
-    case "rem":
-      return inferNumericResultType(expr.left, expr.right);
+    case "rem": {
+      const [left, right] = getBinaryOperands(expr)!;
+      return inferNumericResultType(left, right);
+    }
     case "eq":
     case "lt":
       return "bool";
@@ -253,35 +315,38 @@ export function inferExprType(expr: Expr): ExprValueType {
 
 function validateExpr(expr: Expr): string[] {
   const issues: string[] = [];
+  const kind = getExprKind(expr);
 
-  switch (expr.kind) {
+  switch (kind) {
     case "reg":
-      if (!expr.name.trim()) {
+      if (!getRegisterName(expr).trim()) {
         issues.push("Register references must select a register.");
       }
       break;
     case "not": {
-      const innerType = inferExprType(expr.expr);
+      const inner = getNotOperand(expr)!;
+      const innerType = inferExprType(inner);
       if (innerType !== "bool" && innerType !== "int" && innerType !== "unknown") {
         issues.push("NOT only supports boolean or integer expressions.");
       }
-      issues.push(...validateExpr(expr.expr));
+      issues.push(...validateExpr(inner));
       break;
     }
     case "and":
     case "or":
     case "xor": {
-      const leftType = inferExprType(expr.left);
-      const rightType = inferExprType(expr.right);
+      const [left, right] = getBinaryOperands(expr)!;
+      const leftType = inferExprType(left);
+      const rightType = inferExprType(right);
       const validBitwiseOrBoolean =
         (leftType === "bool" && rightType === "bool") ||
         (leftType === "int" && rightType === "int") ||
         (leftType === "unknown" && (rightType === "bool" || rightType === "int" || rightType === "unknown")) ||
         (rightType === "unknown" && (leftType === "bool" || leftType === "int" || leftType === "unknown"));
       if (!validBitwiseOrBoolean) {
-        issues.push(`${expr.kind.toUpperCase()} requires matching boolean or integer operands.`);
+        issues.push(`${kind.toUpperCase()} requires matching boolean or integer operands.`);
       }
-      issues.push(...validateExpr(expr.left), ...validateExpr(expr.right));
+      issues.push(...validateExpr(left), ...validateExpr(right));
       break;
     }
     case "add":
@@ -290,17 +355,20 @@ function validateExpr(expr: Expr): string[] {
     case "div":
     case "rem":
     case "lt": {
-      const leftType = inferExprType(expr.left);
-      const rightType = inferExprType(expr.right);
+      const [left, right] = getBinaryOperands(expr)!;
+      const leftType = inferExprType(left);
+      const rightType = inferExprType(right);
       if (leftType === "bool" || rightType === "bool") {
-        issues.push(`${expr.kind.toUpperCase()} only supports numeric operands.`);
+        issues.push(`${kind.toUpperCase()} only supports numeric operands.`);
       }
-      issues.push(...validateExpr(expr.left), ...validateExpr(expr.right));
+      issues.push(...validateExpr(left), ...validateExpr(right));
       break;
     }
-    case "eq":
-      issues.push(...validateExpr(expr.left), ...validateExpr(expr.right));
+    case "eq": {
+      const [left, right] = getBinaryOperands(expr)!;
+      issues.push(...validateExpr(left), ...validateExpr(right));
       break;
+    }
     default:
       break;
   }
@@ -337,14 +405,15 @@ function isDefinitelyIntegerLike(type: ExprValueType) {
 }
 
 function collectExprRegisters(expr: Expr, acc: Set<string>) {
-  switch (expr.kind) {
+  const kind = getExprKind(expr);
+  switch (kind) {
     case "reg":
-      if (expr.name.trim()) {
-        acc.add(expr.name);
+      if (getRegisterName(expr).trim()) {
+        acc.add(getRegisterName(expr));
       }
       return;
     case "not":
-      collectExprRegisters(expr.expr, acc);
+      collectExprRegisters(getNotOperand(expr)!, acc);
       return;
     case "and":
     case "or":
@@ -355,10 +424,12 @@ function collectExprRegisters(expr: Expr, acc: Set<string>) {
     case "div":
     case "rem":
     case "eq":
-    case "lt":
-      collectExprRegisters(expr.left, acc);
-      collectExprRegisters(expr.right, acc);
+    case "lt": {
+      const [left, right] = getBinaryOperands(expr)!;
+      collectExprRegisters(left, acc);
+      collectExprRegisters(right, acc);
       return;
+    }
     default:
       return;
   }
@@ -373,36 +444,40 @@ function parseExprPath(path: string): string[] {
 function updateExprBySegments(root: Expr, segments: string[], updater: (expr: Expr) => Expr): Expr {
   const [head, ...tail] = segments;
 
-  if (head === "expr" && root.kind === "not") {
-    return {
-      kind: "not",
-      expr: tail.length === 0 ? updater(root.expr) : updateExprBySegments(root.expr, tail, updater),
-    };
+  if (head === "expr") {
+    const inner = getNotOperand(root);
+    if (!inner) {
+      return root;
+    }
+    return notExpr(tail.length === 0 ? updater(inner) : updateExprBySegments(inner, tail, updater));
   }
 
-  if ((head === "left" || head === "right") && "left" in root) {
-    return {
-      kind: root.kind,
-      left:
-        head === "left"
-          ? (tail.length === 0 ? updater(root.left) : updateExprBySegments(root.left, tail, updater))
-          : root.left,
-      right:
-        head === "right"
-          ? (tail.length === 0 ? updater(root.right) : updateExprBySegments(root.right, tail, updater))
-          : root.right,
-    };
+  if (head === "left" || head === "right") {
+    const operands = getBinaryOperands(root);
+    if (!operands) {
+      return root;
+    }
+    const [left, right] = operands;
+    return rebuildBinaryExpr(root, [
+      head === "left"
+        ? (tail.length === 0 ? updater(left) : updateExprBySegments(left, tail, updater))
+        : left,
+      head === "right"
+        ? (tail.length === 0 ? updater(right) : updateExprBySegments(right, tail, updater))
+        : right,
+    ]);
   }
 
   return root;
 }
 
 function replaceRegisterRefs(expr: Expr, fromRegister: string, toRegister: string): Expr {
-  switch (expr.kind) {
+  const kind = getExprKind(expr);
+  switch (kind) {
     case "reg":
-      return expr.name === fromRegister ? registerExpr(toRegister) : expr;
+      return getRegisterName(expr) === fromRegister ? registerExpr(toRegister) : expr;
     case "not":
-      return { kind: "not", expr: replaceRegisterRefs(expr.expr, fromRegister, toRegister) };
+      return notExpr(replaceRegisterRefs(getNotOperand(expr)!, fromRegister, toRegister));
     case "and":
     case "or":
     case "xor":
@@ -412,20 +487,54 @@ function replaceRegisterRefs(expr: Expr, fromRegister: string, toRegister: strin
     case "div":
     case "rem":
     case "eq":
-    case "lt":
-      return {
-        kind: expr.kind,
-        left: replaceRegisterRefs(expr.left, fromRegister, toRegister),
-        right: replaceRegisterRefs(expr.right, fromRegister, toRegister),
-      };
+    case "lt": {
+      const [left, right] = getBinaryOperands(expr)!;
+      return rebuildBinaryExpr(expr, [
+        replaceRegisterRefs(left, fromRegister, toRegister),
+        replaceRegisterRefs(right, fromRegister, toRegister),
+      ]);
+    }
     default:
       return expr;
   }
 }
 
+function rebuildBinaryExpr(template: Expr, operands: [Expr, Expr]): Expr {
+  const kind = getExprKind(template);
+  return binaryExpr(kind as BinaryExprKind, operands[0], operands[1]);
+}
+
 function wrapExpr(expr: Expr): string {
-  if (expr.kind === "int" || expr.kind === "float" || expr.kind === "bool" || expr.kind === "reg") {
-    return describeExpr(expr);
+  return isLeafExpr(expr) ? describeExpr(expr) : `(${describeExpr(expr)})`;
+}
+
+function getRegisterName(expr: Expr): string {
+  return "Reg" in expr ? expr.Reg : "";
+}
+
+function getNumberValue(expr: Expr): number {
+  if (!("Val" in expr)) {
+    return 0;
   }
-  return `(${describeExpr(expr)})`;
+  if ("Int" in expr.Val) {
+    return expr.Val.Int;
+  }
+  if ("Float" in expr.Val) {
+    return expr.Val.Float;
+  }
+  return 0;
+}
+
+function getBoolValue(expr: Expr): boolean {
+  return "Val" in expr && "Bool" in expr.Val ? expr.Val.Bool : false;
+}
+
+function getBinaryExprKey(expr: Expr): string | null {
+  for (const kind of BINARY_KINDS) {
+    const key = BINARY_EXPR_KEYS[kind];
+    if (key in expr) {
+      return key;
+    }
+  }
+  return null;
 }

@@ -2,7 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ERROR_COLORS, UI_COLORS } from "../../constants";
 import type { ClassicalRegister, Expr } from "../../types";
-import { describeExpr, getExprAtPath, inferExprType, replaceExprKind, updateExprAtPath, validateExpression } from "../../utils/conditions";
+import {
+  describeExpr,
+  getBinaryOperands,
+  getExprAtPath,
+  getExprKind,
+  getNotOperand,
+  inferExprType,
+  isLeafExpr,
+  replaceExprKind,
+  updateExprAtPath,
+  validateExpression,
+} from "../../utils/conditions";
 import { ModalFrame } from "./ModalFrame";
 
 interface ExpressionEditorModalProps {
@@ -65,7 +76,7 @@ const V_GAP = 64;
 const CANVAS_HEIGHT = 460;
 const INITIAL_PAN: PanState = { x: 48, y: 34 };
 
-const EXPR_KIND_GROUPS: Array<{ label: string; options: Array<{ value: Expr["kind"]; label: string }> }> = [
+const EXPR_KIND_GROUPS: Array<{ label: string; options: Array<{ value: ReturnType<typeof getExprKind>; label: string }> }> = [
   {
     label: "Leaves",
     options: [
@@ -239,7 +250,7 @@ export function ExpressionEditorModal({
               </svg>
             </div>
             <div style={treeFooterStyle}>
-              <span>Selected: <b>{getExprKindMeta(selectedExpr.kind).label}</b></span>
+              <span>Selected: <b>{getExprKindMeta(getExprKind(selectedExpr)).label}</b></span>
               <span style={{ color: UI_COLORS.slate500 }}>Tree size {layout.nodes.length} nodes</span>
             </div>
           </div>
@@ -266,10 +277,10 @@ export function ExpressionEditorModal({
               <div style={fieldBlockStyle}>
                 <div style={fieldLabelStyle}>Node Type</div>
                 <select
-                  value={selectedExpr.kind}
+                  value={getExprKind(selectedExpr)}
                   onChange={(event) =>
                     updateSelectedExpr((current) =>
-                      replaceExprKind(current, event.target.value as Expr["kind"], fallbackRegister),
+                      replaceExprKind(current, event.target.value as ReturnType<typeof getExprKind>, fallbackRegister),
                     )
                   }
                   style={selectStyle}
@@ -340,7 +351,7 @@ function ExprTreeNodeView({
   selected: boolean;
   onSelect: (path: string) => void;
 }) {
-  const meta = getExprKindMeta(node.expr.kind);
+  const meta = getExprKindMeta(getExprKind(node.expr));
   const nodeStroke = selected ? UI_COLORS.amber500 : UI_COLORS.borderMid;
   const nodeFill = getExprNodeFill(node.expr);
 
@@ -422,13 +433,15 @@ function SelectedNodeValueEditor({
   classicalRegs: ClassicalRegister[];
   onChange: (updater: (expr: Expr) => Expr) => void;
 }) {
-  if (selectedExpr.kind === "reg") {
+  const kind = getExprKind(selectedExpr);
+
+  if (kind === "reg") {
     return (
       <div style={fieldBlockStyle}>
         <div style={fieldLabelStyle}>Register</div>
         <select
-          value={selectedExpr.name}
-          onChange={(event) => onChange(() => ({ kind: "reg", name: event.target.value }))}
+          value={"Reg" in selectedExpr ? selectedExpr.Reg : ""}
+          onChange={(event) => onChange(() => ({ Reg: event.target.value }))}
           style={selectStyle}
         >
           <option value="">Select register</option>
@@ -442,21 +455,26 @@ function SelectedNodeValueEditor({
     );
   }
 
-  if (selectedExpr.kind === "int" || selectedExpr.kind === "float") {
+  if (kind === "int" || kind === "float") {
+    const value =
+      "Val" in selectedExpr && "Int" in selectedExpr.Val
+        ? selectedExpr.Val.Int
+        : "Val" in selectedExpr && "Float" in selectedExpr.Val
+          ? selectedExpr.Val.Float
+          : 0;
     return (
       <div style={fieldBlockStyle}>
-        <div style={fieldLabelStyle}>{selectedExpr.kind === "float" ? "Float Value" : "Integer Value"}</div>
+        <div style={fieldLabelStyle}>{kind === "float" ? "Float Value" : "Integer Value"}</div>
         <input
           type="number"
-          step={selectedExpr.kind === "float" ? 0.001 : 1}
-          value={selectedExpr.value}
+          step={kind === "float" ? 0.001 : 1}
+          value={value}
           onChange={(event) =>
             onChange(() => ({
-              kind: selectedExpr.kind,
-              value:
-                selectedExpr.kind === "float"
-                  ? Number.parseFloat(event.target.value) || 0
-                  : Number.parseInt(event.target.value, 10) || 0,
+              Val:
+                kind === "float"
+                  ? { Float: Number.parseFloat(event.target.value) || 0 }
+                  : { Int: Number.parseInt(event.target.value, 10) || 0 },
             }))
           }
           style={inputStyle}
@@ -465,13 +483,13 @@ function SelectedNodeValueEditor({
     );
   }
 
-  if (selectedExpr.kind === "bool") {
+  if (kind === "bool") {
     return (
       <div style={fieldBlockStyle}>
         <div style={fieldLabelStyle}>Boolean Value</div>
         <select
-          value={selectedExpr.value ? "true" : "false"}
-          onChange={(event) => onChange(() => ({ kind: "bool", value: event.target.value === "true" }))}
+          value={"Val" in selectedExpr && "Bool" in selectedExpr.Val && selectedExpr.Val.Bool ? "true" : "false"}
+          onChange={(event) => onChange(() => ({ Val: { Bool: event.target.value === "true" } }))}
           style={selectStyle}
         >
           <option value="true">true</option>
@@ -484,7 +502,7 @@ function SelectedNodeValueEditor({
   return null;
 }
 
-function getExprKindMeta(kind: Expr["kind"]) {
+function getExprKindMeta(kind: ReturnType<typeof getExprKind>) {
   switch (kind) {
     case "reg":
       return { label: "Register", symbol: "REG" };
@@ -536,10 +554,6 @@ function getExprNodeFill(expr: Expr) {
   }
 }
 
-function isLeafExpr(expr: Expr) {
-  return expr.kind === "reg" || expr.kind === "int" || expr.kind === "float" || expr.kind === "bool";
-}
-
 function getNodeSize(expr: Expr) {
   return isLeafExpr(expr)
     ? { width: LEAF_NODE_WIDTH, height: LEAF_NODE_HEIGHT, shape: "rect" as const }
@@ -547,14 +561,15 @@ function getNodeSize(expr: Expr) {
 }
 
 function describeLeafNodeValue(expr: Expr) {
-  switch (expr.kind) {
+  switch (getExprKind(expr)) {
     case "reg":
-      return expr.name || "unset";
+      return "Reg" in expr && expr.Reg ? expr.Reg : "unset";
     case "int":
+      return "Val" in expr && "Int" in expr.Val ? String(expr.Val.Int) : "";
     case "float":
-      return String(expr.value);
+      return "Val" in expr && "Float" in expr.Val ? String(expr.Val.Float) : "";
     case "bool":
-      return expr.value ? "true" : "false";
+      return "Val" in expr && "Bool" in expr.Val && expr.Val.Bool ? "true" : "false";
     default:
       return "";
   }
@@ -568,8 +583,8 @@ function layoutNode(expr: Expr, path: string, originX: number, originY: number):
   const nodeSize = getNodeSize(expr);
   const childOriginY = originY + nodeSize.height + V_GAP;
 
-  if (expr.kind === "not") {
-    const child = layoutNode(expr.expr, `${path}.expr`, 0, childOriginY);
+  if (getExprKind(expr) === "not") {
+    const child = layoutNode(getNotOperand(expr)!, `${path}.expr`, 0, childOriginY);
     const width = Math.max(nodeSize.width, child.width);
     const currentNodeX = originX + (width - nodeSize.width) / 2;
     const childOffsetX = originX + (width - child.width) / 2;
@@ -592,9 +607,11 @@ function layoutNode(expr: Expr, path: string, originX: number, originY: number):
     };
   }
 
-  if ("left" in expr) {
-    const left = layoutNode(expr.left, `${path}.left`, 0, childOriginY);
-    const right = layoutNode(expr.right, `${path}.right`, 0, childOriginY);
+  const operands = getBinaryOperands(expr);
+  if (operands) {
+    const [leftExpr, rightExpr] = operands;
+    const left = layoutNode(leftExpr, `${path}.left`, 0, childOriginY);
+    const right = layoutNode(rightExpr, `${path}.right`, 0, childOriginY);
     const childrenWidth = left.width + H_GAP + right.width;
     const width = Math.max(nodeSize.width, childrenWidth);
     const currentNodeX = originX + (width - nodeSize.width) / 2;

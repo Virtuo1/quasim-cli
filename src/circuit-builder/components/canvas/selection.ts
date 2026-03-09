@@ -1,5 +1,5 @@
 import { GB } from "../../constants";
-import type { CircuitElement, ClassicalRegister, CustomGateDefinition, SelectionBox } from "../../types";
+import type { CanvasElement, ClassicalRegister, CustomGateDefinition, SelectionBox } from "../../types";
 import { exprRegisters } from "../../utils/conditions";
 import { customGateOccupiedQubits, findCustomGateDefinition } from "../../utils/customGates";
 import { cregY, wireX, wireY } from "../../utils/layout";
@@ -36,7 +36,7 @@ export function getSelectionBounds(box: SelectionBox): Bounds {
 
 export function selectionHitsElement(
   box: SelectionBox,
-  element: CircuitElement,
+  element: CanvasElement,
   nQ: number,
   classicalRegs: ClassicalRegister[] = [],
   customGateDefinitions: CustomGateDefinition[] = [],
@@ -47,7 +47,7 @@ export function selectionHitsElement(
 }
 
 function getElementBounds(
-  element: CircuitElement,
+  element: CanvasElement,
   nQ: number,
   classicalRegs: ClassicalRegister[],
   customGateDefinitions: CustomGateDefinition[],

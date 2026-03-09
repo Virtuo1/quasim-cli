@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MIN_STEPS } from "../constants";
 import type {
   AssignModalState,
-  CircuitElement,
+  CanvasElement,
   ClassicalControlElement,
   ClassicalRegister,
   ClassicalRegisterModalState,
@@ -38,11 +38,11 @@ interface UseCircuitEditorArgs {
   contRef: React.RefObject<HTMLDivElement | null>;
 }
 
-type ElementUpdater = CircuitElement[] | ((prev: CircuitElement[]) => CircuitElement[]);
+type ElementUpdater = CanvasElement[] | ((prev: CanvasElement[]) => CanvasElement[]);
 
 export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const [nQ, setNQ] = useState(4);
-  const [elements, setRawElements] = useState<CircuitElement[]>([]);
+  const [elements, setRawElements] = useState<CanvasElement[]>([]);
   const [nS, setNS] = useState(MIN_STEPS);
   const [classicalRegs, setCregs] = useState<ClassicalRegister[]>([]);
   const [customGateDefinitions, setCustomGateDefinitions] = useState<CustomGateDefinition[]>([]);
@@ -100,7 +100,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   }, []);
 
   const insertAtStep = useCallback(
-    (current: CircuitElement[], insertStep: number) =>
+    (current: CanvasElement[], insertStep: number) =>
       current.map((el) => ({
         ...el,
         step: el.step >= insertStep ? el.step + 1 : el.step,
@@ -136,7 +136,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   }, []);
 
   const getPlacementQubits = useCallback(
-    (spec: PaletteDragSpec | CircuitElement, baseQubit: number) => {
+    (spec: PaletteDragSpec | CanvasElement, baseQubit: number) => {
       if ((spec.type === "custom")) {
         // Custom gates occupy a qubit span, so drag previews and collision checks
         // need the full footprint instead of just the anchor qubit.
@@ -161,7 +161,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const buildDropPreview = useCallback(
     (
       hit: ReturnType<typeof resolveCanvasHit>,
-      spec: PaletteDragSpec | CircuitElement,
+      spec: PaletteDragSpec | CanvasElement,
       draggedId?: number,
     ): DropPreview | null => {
       if (!hit) {
@@ -340,7 +340,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
           const insertStep = preview.insertAt;
           setElements((current) => {
             const movingEl = current.find(
-              (el): el is Extract<CircuitElement, { type: "cctrl" }> => el.id === elementId && el.type === "cctrl",
+              (el): el is Extract<CanvasElement, { type: "cctrl" }> => el.id === elementId && el.type === "cctrl",
             );
             if (!movingEl) {
               return current;
@@ -388,7 +388,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
         const insertStep = preview.insertAt;
         setElements((current) => {
           const movingEl = current.find(
-            (el): el is Exclude<CircuitElement, ClassicalControlElement> => el.id === elementId && el.type !== "cctrl",
+            (el): el is Exclude<CanvasElement, ClassicalControlElement> => el.id === elementId && el.type !== "cctrl",
           );
           if (!movingEl) {
             return current;
@@ -709,7 +709,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const parameterModalElement = useMemo(
     () =>
       parameterModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "unitary" }> => el.id === parameterModal.id && el.type === "unitary") ?? null
+        ? elements.find((el): el is Extract<CanvasElement, { type: "unitary" }> => el.id === parameterModal.id && el.type === "unitary") ?? null
         : null,
     [elements, parameterModal],
   );
@@ -717,7 +717,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const classicalRegisterModalElement = useMemo(
     () =>
       classicalRegisterModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "measurement" }> => el.id === classicalRegisterModal.elId && el.type === "measurement") ?? null
+        ? elements.find((el): el is Extract<CanvasElement, { type: "measurement" }> => el.id === classicalRegisterModal.elId && el.type === "measurement") ?? null
         : null,
     [classicalRegisterModal, elements],
   );
@@ -725,7 +725,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const conditionModalElement = useMemo(
     () =>
       conditionModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "cctrl" }> => el.id === conditionModal.elId && el.type === "cctrl") ?? null
+        ? elements.find((el): el is Extract<CanvasElement, { type: "cctrl" }> => el.id === conditionModal.elId && el.type === "cctrl") ?? null
         : null,
     [conditionModal, elements],
   );
@@ -733,7 +733,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const jumpModalElement = useMemo(
     () =>
       jumpModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "jump" }> => el.id === jumpModal.elId && el.type === "jump") ?? null
+        ? elements.find((el): el is Extract<CanvasElement, { type: "jump" }> => el.id === jumpModal.elId && el.type === "jump") ?? null
         : null,
     [elements, jumpModal],
   );
@@ -741,7 +741,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   const assignModalElement = useMemo(
     () =>
       assignModal
-        ? elements.find((el): el is Extract<CircuitElement, { type: "assign" }> => el.id === assignModal.elId && el.type === "assign") ?? null
+        ? elements.find((el): el is Extract<CanvasElement, { type: "assign" }> => el.id === assignModal.elId && el.type === "assign") ?? null
         : null,
     [assignModal, elements],
   );
@@ -784,7 +784,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const applyCondition = useCallback(
-    (condition: Extract<CircuitElement, { type: "cctrl" }>["condition"]) => {
+    (condition: Extract<CanvasElement, { type: "cctrl" }>["condition"]) => {
       if (!conditionModal) {
         return;
       }
@@ -824,7 +824,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
       }
 
       const jumpElement = elementsRef.current.find(
-        (element): element is Extract<CircuitElement, { type: "jump" }> =>
+        (element): element is Extract<CanvasElement, { type: "jump" }> =>
           element.id === jumpModal.elId && element.type === "jump",
       );
       if (!jumpElement || jumpElement.step === targetStep) {
@@ -843,7 +843,7 @@ export function useCircuitEditor({ svgRef, contRef }: UseCircuitEditorArgs) {
   );
 
   const applyAssign = useCallback(
-    (registerName: string | null, expr: Extract<CircuitElement, { type: "assign" }>["expr"]) => {
+    (registerName: string | null, expr: Extract<CanvasElement, { type: "assign" }>["expr"]) => {
       if (!assignModal) {
         return;
       }

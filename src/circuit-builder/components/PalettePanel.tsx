@@ -1,12 +1,12 @@
 import { CONNECTOR_BLACK, CLASSICAL_OP_DEFS, CLASSICAL_OP_KINDS, UI_COLORS, UNITARY_OP_DEFS, UNITARY_GATE_KINDS, unitaryGateSupportsParam } from "../constants";
-import type { CircuitElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
+import type { CanvasElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
 import { describeExpr, exprRegisters } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface PalettePanelProps {
   classicalRegs: ClassicalRegister[];
   customGateDefinitions: CustomGateDefinition[];
-  selectedElement: CircuitElement | null;
+  selectedElement: CanvasElement | null;
   selectedCount: number;
   customGateCreationError: string | null;
   newRegName: string;
@@ -347,7 +347,7 @@ function SelectedElementCard({
   onEditSelectedJump,
   onDeleteSelected,
 }: {
-  element: CircuitElement;
+  element: CanvasElement;
   onEditSelectedParam: (id: number, values: number[]) => void;
   onEditSelectedCreg: (id: number) => void;
   onEditSelectedAssign: (id: number) => void;
@@ -405,7 +405,7 @@ function SelectedElementCard({
   );
 }
 
-function selectedTitle(element: CircuitElement) {
+function selectedTitle(element: CanvasElement) {
   if (element.type === "ctrl") {
     return "Control node";
   }
@@ -436,7 +436,7 @@ function selectedTitle(element: CircuitElement) {
   return "Element";
 }
 
-function selectedDetails(element: CircuitElement) {
+function selectedDetails(element: CanvasElement) {
   if (element.type === "cctrl") {
     const registers = exprRegisters(element.condition);
     return (

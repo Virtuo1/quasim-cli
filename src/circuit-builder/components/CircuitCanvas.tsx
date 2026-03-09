@@ -1,5 +1,5 @@
 import { CH, CREG_GAP, CRH, CW, LW, PX, PY, UI_COLORS } from "../constants";
-import type { CircuitElement, ClassicalRegister, CustomGateDefinition, DropPreview, SelectionBox, StepAnalysisMap } from "../types";
+import type { CanvasElement, ClassicalRegister, CustomGateDefinition, DropPreview, SelectionBox, StepAnalysisMap } from "../types";
 import { wireX } from "../utils/layout";
 import { getConnectorLinesWithCustoms } from "../utils/circuit";
 import { ClassicalControlWires, ClassicalRegisterLines, MeasurementWires, QuantumConnectorLines, QubitWires, StepLabels } from "./canvas/CanvasWires";
@@ -10,7 +10,7 @@ interface CircuitCanvasProps {
   svgRef: React.RefObject<SVGSVGElement | null>;
   nQ: number;
   nS: number;
-  elements: CircuitElement[];
+  elements: CanvasElement[];
   classicalRegs: ClassicalRegister[];
   customGateDefinitions: CustomGateDefinition[];
   selectedIds: number[];
