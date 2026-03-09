@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "cargo run -p quasim-cli -- gui --api-only",
+    "dev:gui": "cargo run -p quasim-cli -- gui",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -1,0 +1,15 @@
+[package]
+name = "quasim-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "quasim-cli"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+quasim-backend = { path = "../backend" }
+tokio.workspace = true
+webbrowser.workspace = true

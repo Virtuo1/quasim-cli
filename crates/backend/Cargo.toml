@@ -1,0 +1,16 @@
+[package]
+name = "quasim-backend"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+quasim = { path = "../simulator" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
