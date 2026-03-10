@@ -51,7 +51,7 @@ export function CircuitCanvas({
   const svgH = PY * 2 + nQ * CH + (classicalRegs.length > 0 ? CREG_GAP + classicalRegs.length * CRH : 0);
 
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: 16, background: UI_COLORS.panelBg }}>
+    <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "auto", padding: 16, background: UI_COLORS.panelBg }}>
       <svg
         ref={svgRef}
         width={svgW}

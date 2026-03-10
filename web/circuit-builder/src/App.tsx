@@ -2,6 +2,7 @@ import { useRef } from "react";
 
 import { AppHeader } from "./circuit-builder/components/AppHeader";
 import { CircuitCanvas } from "./circuit-builder/components/CircuitCanvas";
+import { DockPanel } from "./circuit-builder/components/DockPanel";
 import { DragGhost } from "./circuit-builder/components/DragGhost";
 import { PalettePanel } from "./circuit-builder/components/PalettePanel";
 import { StatusBar } from "./circuit-builder/components/StatusBar";
@@ -67,26 +68,38 @@ function App() {
           onDeleteSelectedSet={actions.deleteSelectedSet}
         />
 
-        <CircuitCanvas
-          svgRef={svgRef}
-          nQ={state.nQ}
-          nS={state.nS}
-          elements={state.elements}
-          classicalRegs={state.classicalRegs}
-          customGateDefinitions={state.customGateDefinitions}
-          selectedIds={state.selectedIds}
-          draggingId={state.draggingId}
-          dropPreview={state.dropPreview}
-          selectionBox={state.selectionBox}
-          stepAnalysis={state.stepAnalysis}
-          jumpTargetSelectionActive={!!state.jumpModal}
-          hoveredJumpTargetStep={state.hoveredJumpTargetStep}
-          jumpSourceStep={state.jumpModalElement?.step ?? null}
-          onJumpTargetHover={actions.setHoveredJumpTargetStep}
-          onJumpTargetSelect={actions.applyJumpTarget}
-          onCanvasPointerDown={actions.startCanvasSelection}
-          onElementPointerDown={actions.startElementDrag}
-        />
+        <div style={{ display: "flex", flex: 1, flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+          <CircuitCanvas
+            svgRef={svgRef}
+            nQ={state.nQ}
+            nS={state.nS}
+            elements={state.elements}
+            classicalRegs={state.classicalRegs}
+            customGateDefinitions={state.customGateDefinitions}
+            selectedIds={state.selectedIds}
+            draggingId={state.draggingId}
+            dropPreview={state.dropPreview}
+            selectionBox={state.selectionBox}
+            stepAnalysis={state.stepAnalysis}
+            jumpTargetSelectionActive={!!state.jumpModal}
+            hoveredJumpTargetStep={state.hoveredJumpTargetStep}
+            jumpSourceStep={state.jumpModalElement?.step ?? null}
+            onJumpTargetHover={actions.setHoveredJumpTargetStep}
+            onJumpTargetSelect={actions.applyJumpTarget}
+            onCanvasPointerDown={actions.startCanvasSelection}
+            onElementPointerDown={actions.startElementDrag}
+          />
+
+          <DockPanel
+            nQ={state.nQ}
+            nS={state.nS}
+            classicalRegisterCount={state.classicalRegs.length}
+            customGateCount={state.customGateDefinitions.length}
+            selectedElement={state.selectedElement}
+            selectedCount={state.selectedCount}
+            errorSteps={state.errorSteps}
+          />
+        </div>
       </div>
 
       <StatusBar
