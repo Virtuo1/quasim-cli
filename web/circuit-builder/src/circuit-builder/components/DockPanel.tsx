@@ -2,12 +2,15 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useRef, useState } from "react";
 
 import { UI_COLORS } from "../constants";
-import type { DebugStateVector } from "../types";
+import type { ClassicalRegister, DebugClassicalRegisterValues, DebugStateVector } from "../types";
+import { DebugValueTrackerPanel } from "./DebugValueTrackerPanel";
 import { StateVectorPlot, type StateVectorPlotDatum } from "./StateVectorPlot";
 
 interface DockPanelProps {
   nQ: number;
+  classicalRegs: ClassicalRegister[];
   debugStateVector: DebugStateVector | null;
+  debugClassicalRegisterValues: DebugClassicalRegisterValues;
 }
 
 const MIN_DOCK_HEIGHT = 160;
@@ -15,7 +18,7 @@ const MAX_DOCK_HEIGHT = 480;
 const MIN_LEFT_PANE_WIDTH = 240;
 const MIN_RIGHT_PANE_WIDTH = 180;
 
-export function DockPanel({ nQ, debugStateVector }: DockPanelProps) {
+export function DockPanel({ nQ, classicalRegs, debugStateVector, debugClassicalRegisterValues }: DockPanelProps) {
   const dockRef = useRef<HTMLDivElement | null>(null);
   const [dockHeight, setDockHeight] = useState(240);
   const [leftPaneWidth, setLeftPaneWidth] = useState(520);
@@ -109,7 +112,14 @@ export function DockPanel({ nQ, debugStateVector }: DockPanelProps) {
           }}
         />
 
-        <div style={{ flex: 1, minWidth: 0, background: UI_COLORS.white }} />
+        <div style={{ flex: 1, minWidth: 0, background: UI_COLORS.white }}>
+          <DebugValueTrackerPanel
+            nQ={nQ}
+            classicalRegs={classicalRegs}
+            debugClassicalRegisterValues={debugClassicalRegisterValues}
+            debugStateVector={debugStateVector}
+          />
+        </div>
       </div>
     </div>
   );

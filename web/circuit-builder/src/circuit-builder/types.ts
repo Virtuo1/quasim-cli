@@ -246,6 +246,10 @@ export interface DebugStateVector {
   amplitudes: ComplexAmplitude[];
 }
 
+export type DebugClassicalRegisterValue = number | string | boolean | null;
+
+export type DebugClassicalRegisterValues = Record<string, DebugClassicalRegisterValue>;
+
 /**
  * Gate definition types
  */

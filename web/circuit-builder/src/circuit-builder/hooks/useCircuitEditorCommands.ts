@@ -789,6 +789,7 @@ export function useCircuitEditorCommands(
     setCustomGateModal: ui.setCustomGateModal,
     setNewRegName: doc.setNewRegName,
     setDebugStateVector: doc.setDebugStateVector,
+    setDebugClassicalRegisterValues: doc.setDebugClassicalRegisterValues,
     handleKeyDown,
     startCanvasSelection,
     startPaletteDrag,

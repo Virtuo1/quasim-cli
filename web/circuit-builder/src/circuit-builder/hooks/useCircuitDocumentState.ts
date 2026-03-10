@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MIN_STEPS } from "../constants";
-import type { CanvasElement, ClassicalRegister, CustomGateDefinition, DebugStateVector } from "../types";
+import type {
+  CanvasElement,
+  ClassicalRegister,
+  CustomGateDefinition,
+  DebugClassicalRegisterValues,
+  DebugStateVector,
+} from "../types";
 import { compact } from "../utils/circuit";
 import type { CircuitDocumentStore, ElementUpdater } from "./circuitEditorTypes";
 
@@ -15,6 +21,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
   const [customGateDefinitions, setCustomGateDefinitions] = useState<CustomGateDefinition[]>([]);
   const [newRegName, setNewRegName] = useState("");
   const [debugStateVector, setDebugStateVector] = useState<DebugStateVector | null>(null);
+  const [debugClassicalRegisterValues, setDebugClassicalRegisterValues] = useState<DebugClassicalRegisterValues>({});
 
   const elementsRef = useSyncedRef(elements);
   const nQRef = useSyncedRef(nQ);
@@ -25,8 +32,9 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
   useEffect(() => {
     if (USE_MOCK_DEBUG_STATE_VECTOR) {
       setDebugStateVector(createMockDebugStateVector(nQ));
+      setDebugClassicalRegisterValues(createMockDebugClassicalRegisterValues(classicalRegs, nQ));
     }
-  }, [nQ]);
+  }, [classicalRegs, nQ]);
 
   const setElements = useCallback((updater: ElementUpdater) => {
     setRawElements((prev) => {
@@ -45,6 +53,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
     customGateDefinitions,
     newRegName,
     debugStateVector,
+    debugClassicalRegisterValues,
     elementsRef,
     nQRef,
     nSRef,
@@ -57,6 +66,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
     setCustomGateDefinitions,
     setNewRegName,
     setDebugStateVector,
+    setDebugClassicalRegisterValues,
   };
 }
 
@@ -91,4 +101,13 @@ function createMockDebugStateVector(qubitCount: number): DebugStateVector {
       imag: amplitude.imag / norm,
     })),
   };
+}
+
+function createMockDebugClassicalRegisterValues(
+  classicalRegs: ClassicalRegister[],
+  qubitCount: number,
+): DebugClassicalRegisterValues {
+  return Object.fromEntries(
+    classicalRegs.map((register, index) => [register.name, ((index + 1) * 3 + qubitCount) % 16]),
+  );
 }

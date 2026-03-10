@@ -11,6 +11,7 @@ import type {
   CanvasElement,
   ClassicalRegister,
   ClassicalRegisterModalState,
+  DebugClassicalRegisterValues,
   DebugStateVector,
   ConditionModalState,
   CustomGateDefinition,
@@ -39,6 +40,7 @@ export interface CircuitDocumentState {
   customGateDefinitions: CustomGateDefinition[];
   newRegName: string;
   debugStateVector: DebugStateVector | null;
+  debugClassicalRegisterValues: DebugClassicalRegisterValues;
 }
 
 export interface CircuitUiState {
@@ -93,6 +95,7 @@ export interface CircuitDocumentStore extends CircuitDocumentState, CircuitEdito
   setCustomGateDefinitions: Dispatch<SetStateAction<CustomGateDefinition[]>>;
   setNewRegName: Dispatch<SetStateAction<string>>;
   setDebugStateVector: Dispatch<SetStateAction<DebugStateVector | null>>;
+  setDebugClassicalRegisterValues: Dispatch<SetStateAction<DebugClassicalRegisterValues>>;
 }
 
 export interface CircuitUiStore extends CircuitUiState {
@@ -127,6 +130,7 @@ export interface CircuitEditorActions {
   setCustomGateModal: Dispatch<SetStateAction<CustomGateModalState | null>>;
   setNewRegName: Dispatch<SetStateAction<string>>;
   setDebugStateVector: Dispatch<SetStateAction<DebugStateVector | null>>;
+  setDebugClassicalRegisterValues: Dispatch<SetStateAction<DebugClassicalRegisterValues>>;
   handleKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   startCanvasSelection: (event: ReactPointerEvent<SVGSVGElement>) => void;
   startPaletteDrag: (event: ReactPointerEvent, spec: PaletteDragSpec) => void;

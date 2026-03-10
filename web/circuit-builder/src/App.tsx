@@ -92,7 +92,9 @@ function App() {
 
           <DockPanel
             nQ={state.nQ}
+            classicalRegs={state.classicalRegs}
             debugStateVector={state.debugStateVector}
+            debugClassicalRegisterValues={state.debugClassicalRegisterValues}
           />
         </div>
       </div>
