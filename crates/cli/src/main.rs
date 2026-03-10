@@ -5,7 +5,8 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
-use quasim_backend::{ServerOptions, run_server};
+use quasim::{circuit::Circuit, debug_terminal::DebugTerminal, sv_simulator::SVSimulatorDebugger};
+use quasim_backend::web_server::{ServerOptions, run_server};
 
 #[derive(Debug, Parser)]
 #[command(name = "quasim-cli")]
@@ -65,7 +66,15 @@ async fn main() -> Result<()> {
             .await
             .map_err(Into::into)
         }
-        Command::Debug { circuit_file } => todo!(),
+
+        Command::Debug { circuit_file } => {
+            let test_circ = Circuit::new(3).h(0).cx(&[0], 2).cx(&[2], 1);
+
+            let mut term = DebugTerminal::<SVSimulatorDebugger>::new(test_circ)
+                .expect("Test could not build debug terminal");
+
+            term.run().map_err(Into::into)
+        }
     }
 }
 

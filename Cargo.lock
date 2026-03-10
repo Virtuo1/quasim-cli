@@ -1201,6 +1201,8 @@ dependencies = [
  "nalgebra",
  "oq3_syntax",
  "rand",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -1223,6 +1225,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "quasim",
  "quasim-backend",
  "tokio",
  "webbrowser",

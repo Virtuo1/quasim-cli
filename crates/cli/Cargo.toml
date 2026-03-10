@@ -11,5 +11,6 @@ path = "src/main.rs"
 anyhow.workspace = true
 clap.workspace = true
 quasim-backend = { path = "../backend" }
+quasim = { path = "../simulator" }
 tokio.workspace = true
 webbrowser.workspace = true
