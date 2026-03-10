@@ -13,10 +13,10 @@ interface DockPanelProps {
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
 }
 
-const MIN_DOCK_HEIGHT = 160;
-const MAX_DOCK_HEIGHT = 480;
-const MIN_LEFT_PANE_WIDTH = 240;
-const MIN_RIGHT_PANE_WIDTH = 180;
+const MIN_DOCK_HEIGHT = 50;
+const MAX_DOCK_HEIGHT = 600;
+const MIN_LEFT_PANE_WIDTH = 280;
+const MIN_RIGHT_PANE_WIDTH = 400;
 
 export function DockPanel({ nQ, classicalRegs, debugStateVector, debugClassicalRegisterValues }: DockPanelProps) {
   const dockRef = useRef<HTMLDivElement | null>(null);

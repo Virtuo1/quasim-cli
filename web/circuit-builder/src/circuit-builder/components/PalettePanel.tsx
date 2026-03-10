@@ -4,6 +4,7 @@ import { describeExpr, exprRegisters } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
 interface PalettePanelProps {
+  width: number;
   classicalRegs: ClassicalRegister[];
   customGateDefinitions: CustomGateDefinition[];
   selectedElement: CanvasElement | null;
@@ -25,6 +26,7 @@ interface PalettePanelProps {
 }
 
 export function PalettePanel({
+  width,
   classicalRegs,
   customGateDefinitions,
   selectedElement,
@@ -50,7 +52,7 @@ export function PalettePanel({
   return (
     <div
       style={{
-        width: 200,
+        width,
         background: UI_COLORS.white,
         borderRight: `1px solid ${UI_COLORS.borderLight}`,
         overflowY: "auto",
@@ -71,7 +73,7 @@ export function PalettePanel({
 
       <div>
         <SectionTitle>Gates</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 8px 8px" }}>
           {UNITARY_GATE_KINDS.map((kind) => {
             const definition = UNITARY_OP_DEFS[kind];
             return (
@@ -80,24 +82,18 @@ export function PalettePanel({
                 title={definition.description}
                 onPointerDown={(event) => onStartPaletteDrag(event, { type: "unitary", kind })}
                 style={{
-                  padding: "5px 2px",
+                  padding: "5px 8px",
                   cursor: "grab",
                   fontFamily: "monospace",
                   fontWeight: 700,
                   fontSize: 12,
                   borderRadius: 3,
-                  background: UI_COLORS.white,
-                  color: definition.color,
+                  background: definition.color,
+                  color: UI_COLORS.white,
                   border: `1.5px solid ${definition.color}`,
-                  transition: "background .1s,color .1s",
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.background = definition.color;
-                  event.currentTarget.style.color = UI_COLORS.white;
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.background = UI_COLORS.white;
-                  event.currentTarget.style.color = definition.color;
+                  minWidth: 35,
+                  width: "auto",
+                  flex: "0 0 auto",
                 }}
               >
                 {definition.label}
@@ -109,7 +105,7 @@ export function PalettePanel({
 
       <div>
         <SectionTitle>Classical Ops</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, padding: "6px 8px 8px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 8px 8px" }}>
           {CLASSICAL_OP_KINDS.map((type) => {
             const definition = CLASSICAL_OP_DEFS[type];
             return (
@@ -118,24 +114,18 @@ export function PalettePanel({
                 title={definition.description}
                 onPointerDown={(event) => onStartPaletteDrag(event, { type })}
                 style={{
-                  padding: "5px 2px",
+                  padding: "5px 8px",
                   cursor: "grab",
                   fontFamily: "monospace",
                   fontWeight: 700,
                   fontSize: 12,
                   borderRadius: 3,
-                  background: UI_COLORS.white,
-                  color: definition.color,
+                  background: definition.color,
+                  color: UI_COLORS.white,
                   border: `1.5px solid ${definition.color}`,
-                  transition: "background .1s,color .1s",
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.background = definition.color;
-                  event.currentTarget.style.color = UI_COLORS.white;
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.background = UI_COLORS.white;
-                  event.currentTarget.style.color = definition.color;
+                  minWidth: 35,
+                  width: "auto",
+                  flex: "0 0 auto",
                 }}
               >
                 {definition.label}
@@ -194,14 +184,27 @@ export function PalettePanel({
           {customGateDefinitions.length === 0 ? (
             <div style={{ fontSize: 10, color: UI_COLORS.slate400, fontStyle: "italic" }}>No custom gates yet</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {customGateDefinitions.map((definition) => (
                 <button
                   key={definition.id}
                   onPointerDown={(event) => onStartPaletteDrag(event, { type: "custom", classifier: definition.classifier })}
-                  style={connectorButtonStyle(CONNECTOR_BLACK)}
+                  style={{
+                    padding: "5px 8px",
+                    cursor: "grab",
+                    fontFamily: "monospace",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    borderRadius: 3,
+                    background: CONNECTOR_BLACK,
+                    color: UI_COLORS.white,
+                    border: `1.5px solid ${CONNECTOR_BLACK}`,
+                    minWidth: 35,
+                    width: "auto",
+                    flex: "0 0 auto",
+                  }}
                 >
-                  <span style={{ fontFamily: "monospace" }}>{definition.classifier}</span>
+                  {definition.classifier}
                 </button>
               ))}
             </div>

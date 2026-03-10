@@ -33,7 +33,7 @@ interface HoveredBarState {
   clientY: number;
 }
 
-const MIN_FRAME_WIDTH = 320;
+const MIN_FRAME_WIDTH = 150;
 const MIN_FRAME_HEIGHT = 120;
 const MAX_BAR_WIDTH = 40;
 const HOVER_CARD_WIDTH = 168;
