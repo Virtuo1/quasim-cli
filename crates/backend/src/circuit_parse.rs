@@ -6,7 +6,7 @@ use quasim::{circuit::Circuit, expr_dsl::Expr, gate::GateError};
 /// DTOs matching the client JSON export format exactly.
 ///
 /// Example:
-/// ```rust
+/// ```ignore
 /// let circuit: SerializedCircuit = serde_json::from_str(json_str)?;
 /// let json = serde_json::to_string_pretty(&circuit)?;
 /// ```
