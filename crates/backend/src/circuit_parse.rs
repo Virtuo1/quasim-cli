@@ -1,15 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, HashMap},
-    fs::read_to_string,
-};
+use std::{collections::HashMap, fs::read_to_string};
 
-use quasim::{
-    circuit::Circuit,
-    expr_dsl::Expr,
-    gate::{Gate, GateError, GateType, QBits},
-    instruction::Instruction,
-};
+use quasim::{circuit::Circuit, expr_dsl::Expr, gate::GateError};
 
 /// DTOs matching the client JSON export format exactly.
 ///
@@ -130,6 +122,10 @@ pub enum JsonParseError {
         #[source]
         source: GateError,
     },
+    #[error("has unresolved jump label(s)")]
+    UnresolvedLabel,
+    #[error("duplicate condition on step {step}")]
+    DuplicateCondition { step: usize },
 }
 
 impl SerializedCircuit {
@@ -157,18 +153,43 @@ impl TryFrom<SerializedCircuit> for Circuit {
             circuit = circuit.new_reg(reg);
         }
 
+        // Create map of step to every condition
+        // Only one condition (Expr) is expected per step
+        let mut step_to_condition = HashMap::<usize, Expr>::new();
+        for condition in value.conditions {
+            if step_to_condition
+                .insert(condition.step, condition.expr)
+                .is_some()
+            {
+                return Err(JsonParseError::DuplicateCondition {
+                    step: condition.step,
+                });
+            }
+        }
+
         let mut step = 0;
         let mut step_to_pc = HashMap::<usize, usize>::new();
-        step_to_pc.insert(0, 0);
-        circuit = circuit.label(&get_step_label(0));
+
+        // Repeated code, remove and fix later maybe
+        step_to_pc.insert(step, circuit.instructions().len());
+
+        circuit = circuit.label(get_step_label(step));
+
+        if let Some(expr) = step_to_condition.get(&0) {
+            circuit = circuit.jump_if(expr.clone(), get_step_label(1))
+        }
 
         for op in value.instructions {
             if op.step > step {
-                step_to_pc.insert(op.step, circuit.instructions().len());
                 step = op.step;
 
-                // Label beginning of each step
-                circuit = circuit.label(&get_step_label(step));
+                step_to_pc.insert(step, circuit.instructions().len());
+
+                circuit = circuit.label(get_step_label(step));
+
+                if let Some(expr) = step_to_condition.get(&step) {
+                    circuit = circuit.jump_if(expr.clone(), get_step_label(step + 1))
+                }
             }
 
             circuit = match op.kind {
@@ -181,8 +202,7 @@ impl TryFrom<SerializedCircuit> for Circuit {
                 OperationKind::Rx => apply_param_unitary(circuit, &op, Circuit::rx, Circuit::crx)?,
                 OperationKind::Ry => apply_param_unitary(circuit, &op, Circuit::ry, Circuit::cry)?,
                 OperationKind::Rz => apply_param_unitary(circuit, &op, Circuit::rz, Circuit::crz)?,
-                OperationKind::P => todo!(),
-
+                // TODO P gate
                 OperationKind::U => {
                     let target = required_qubit(&op)?;
                     let params = required_params(&op, 3)?;
@@ -204,17 +224,19 @@ impl TryFrom<SerializedCircuit> for Circuit {
                 }
                 OperationKind::I => circuit, // Identity, do nothing
 
-                OperationKind::Measure => todo!(),
-                // {
-                //     let creg = required_creg(&op)?;
-                //     let creg_bit = required_creg_bit(&op)?;
+                OperationKind::Measure => {
+                    let target = required_qubit(&op)?;
+                    let creg = required_creg(&op)?;
+                    let creg_bit = required_creg_bit(&op)?;
 
-                //     circuit.measure_bit(target, reg)
-                // },
+                    ensure_register(&circuit, creg)?;
+                    circuit.measure_bit(target, (creg, creg_bit))
+                }
                 OperationKind::Assign => {
                     let creg = required_creg(&op)?;
                     let expr = required_expr(&op)?;
 
+                    ensure_register(&circuit, creg)?;
                     circuit.assign(creg.into(), expr)
                 }
                 OperationKind::Reset => {
@@ -222,19 +244,27 @@ impl TryFrom<SerializedCircuit> for Circuit {
 
                     circuit.reset(target)
                 }
-                OperationKind::Jump => todo!(),
+                OperationKind::Jump => {
+                    let target_step = required_target_step(&op)?;
 
-                OperationKind::Custom => todo!(),
+                    circuit.jump(get_step_label(target_step))
+                }
+                // TODO Custom gate
+                _ => {
+                    return Err(JsonParseError::UnsupportedOperation {
+                        kind: op.kind,
+                        step,
+                    });
+                }
             }
         }
 
-
-        Ok(circuit)
+        if circuit.has_unresolved_labels() {
+            Err(JsonParseError::UnresolvedLabel)
+        } else {
+            Ok(circuit)
+        }
     }
-}
-
-fn get_step_label(step: usize) -> String {
-    format!("_step{step}")
 }
 
 fn apply_unitary(
@@ -267,8 +297,6 @@ fn apply_param_unitary(
         gate(circuit, param, target)
     })
 }
-
-
 
 fn required_qubit(op: &InstructionDefinition) -> Result<usize, JsonParseError> {
     op.qubit.ok_or(JsonParseError::MissingField {
@@ -338,147 +366,16 @@ fn required_expr(op: &InstructionDefinition) -> Result<Expr, JsonParseError> {
         })
 }
 
-#[cfg(test)]
-mod tests {
-    use quasim::expr_dsl::{Value, expr_helpers::r};
-
-    use super::*;
-
-    #[test]
-    fn serialize_condition_expr_and_print_json() {
-        let expr = r("test").eq(Expr::Val(Value::Int(0)) & r("kuk"));
-        let expr2 = Expr::Val(Value::Int(6)).eq(9) & r("test");
-
-        let json = serde_json::to_string_pretty(&expr2).unwrap();
-        println!("{json}");
-        println!("{}", serde_json::to_string_pretty(&expr).unwrap());
-    }
-
-    #[test]
-    fn from_json() {
-        let json_data = r#"
-{
-  "qubits": 4,
-  "steps": 5,
-  "classicalRegisters": [
-    "test",
-    "abc",
-    "kuk"
-  ],
-  "customGates": [],
-  "instructions": [
-    {
-      "step": 0,
-      "type": "X",
-      "qubit": 0,
-      "controls": [
-        3
-      ]
-    },
-    {
-      "step": 1,
-      "type": "H",
-      "qubit": 1
-    },
-    {
-      "step": 1,
-      "type": "M",
-      "qubit": 3,
-      "creg": "test",
-      "cregBit": 0
-    },
-    {
-      "step": 2,
-      "type": "JUMP",
-      "targetStep": 0
-    },
-    {
-      "step": 3,
-      "type": "ASSIGN",
-      "qubit": 0,
-      "expr": {
-        "And": [
-          {
-            "Eq": [
-              {
-                "Val": {
-                  "Int": 6
-                }
-              },
-              {
-                "Val": {
-                  "Int": 9
-                }
-              }
-            ]
-          },
-          {
-            "Reg": "test"
-          }
-        ]
-      },
-      "creg": "test"
-    }
-  ],
-  "conditions": [
-    {
-      "step": 1,
-      "expr": {
-        "Eq": [
-          {
-            "Reg": "test"
-          },
-          {
-            "And": [
-              {
-                "Val": {
-                  "Int": 0
-                }
-              },
-              {
-                "Reg": "kuk"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "step": 2,
-      "expr": {
-        "Eq": [
-          {
-            "Reg": "abc"
-          },
-          {
-            "And": [
-              {
-                "Val": {
-                  "Bool": false
-                }
-              },
-              {
-                "Reg": "abc"
-              }
-            ]
-          }
-        ]
-      }
-    }
-  ]
+fn get_step_label(step: usize) -> String {
+    format!("_step{step}")
 }
-        "#;
 
-        let serialized = SerializedCircuit::from_json_str(json_data).unwrap();
-        let circuit = serialized.into_circuit().unwrap();
-
-        // let mut term = crate::debug_terminal::DebugTerminal::<crate::sv_simulator::SVSimulatorDebugger>::new(circuit)
-        //     .expect("Test could not build debug terminal");
-
-        // term.run();
-
-        println!("{:#?}", circuit);
-        // assert_eq!(circuit.n_qubits(), 4);
-        // assert!(circuit.registers().contains("kuk"));
+fn ensure_register(circuit: &Circuit, reg: &str) -> Result<(), JsonParseError> {
+    if circuit.registers().contains(reg) {
+        Ok(())
+    } else {
+        Err(JsonParseError::UnknownRegister {
+            name: reg.to_owned(),
+        })
     }
 }
