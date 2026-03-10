@@ -237,6 +237,15 @@ export interface CustomGateModalState {
   suggestedName?: string;
 }
 
+export interface ComplexAmplitude {
+  real: number;
+  imag: number;
+}
+
+export interface DebugStateVector {
+  amplitudes: ComplexAmplitude[];
+}
+
 /**
  * Gate definition types
  */

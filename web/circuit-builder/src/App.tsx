@@ -92,12 +92,7 @@ function App() {
 
           <DockPanel
             nQ={state.nQ}
-            nS={state.nS}
-            classicalRegisterCount={state.classicalRegs.length}
-            customGateCount={state.customGateDefinitions.length}
-            selectedElement={state.selectedElement}
-            selectedCount={state.selectedCount}
-            errorSteps={state.errorSteps}
+            debugStateVector={state.debugStateVector}
           />
         </div>
       </div>

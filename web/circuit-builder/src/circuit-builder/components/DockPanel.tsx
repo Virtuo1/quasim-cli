@@ -1,151 +1,193 @@
-import { useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState } from "react";
 
-import { CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS } from "../constants";
-import type { CanvasElement } from "../types";
-import { describeExpr } from "../utils/conditions";
-import { fmt } from "../utils/layout";
+import { UI_COLORS } from "../constants";
+import type { DebugStateVector } from "../types";
+import { StateVectorPlot, type StateVectorPlotDatum } from "./StateVectorPlot";
 
 interface DockPanelProps {
   nQ: number;
-  nS: number;
-  classicalRegisterCount: number;
-  customGateCount: number;
-  selectedElement: CanvasElement | null;
-  selectedCount: number;
-  errorSteps: number;
+  debugStateVector: DebugStateVector | null;
 }
 
-export function DockPanel({
-  nQ,
-  nS,
-  classicalRegisterCount,
-  customGateCount,
-  selectedElement,
-  selectedCount,
-  errorSteps,
-}: DockPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+const MIN_DOCK_HEIGHT = 160;
+const MAX_DOCK_HEIGHT = 480;
+const MIN_LEFT_PANE_WIDTH = 240;
+const MIN_RIGHT_PANE_WIDTH = 180;
+
+export function DockPanel({ nQ, debugStateVector }: DockPanelProps) {
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const [dockHeight, setDockHeight] = useState(240);
+  const [leftPaneWidth, setLeftPaneWidth] = useState(520);
+
+  const startHeightResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = dockHeight;
+
+    const onMove = (moveEvent: PointerEvent) => {
+      setDockHeight(clamp(startHeight - (moveEvent.clientY - startY), MIN_DOCK_HEIGHT, MAX_DOCK_HEIGHT));
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  const startSplitResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const dockRect = dockRef.current?.getBoundingClientRect();
+    if (!dockRect) {
+      return;
+    }
+
+    const onMove = (moveEvent: PointerEvent) => {
+      setLeftPaneWidth(
+        clamp(moveEvent.clientX - dockRect.left, MIN_LEFT_PANE_WIDTH, dockRect.width - MIN_RIGHT_PANE_WIDTH),
+      );
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
 
   return (
     <div
+      ref={dockRef}
       style={{
+        position: "relative",
         flexShrink: 0,
+        height: dockHeight,
         borderTop: `1px solid ${UI_COLORS.borderLight}`,
         background: UI_COLORS.white,
+        overflow: "hidden",
       }}
     >
       <div
+        onPointerDown={startHeightResize}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "10px 14px",
-          background: UI_COLORS.panelBg,
-          borderBottom: collapsed ? "none" : `1px solid ${UI_COLORS.borderLight}`,
+          position: "absolute",
+          top: -4,
+          left: 0,
+          right: 0,
+          height: 8,
+          cursor: "ns-resize",
+          zIndex: 3,
         }}
-      >
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: UI_COLORS.slate900 }}>Dock</div>
-          <div style={{ fontSize: 11, color: UI_COLORS.slate500 }}>
-            {collapsed ? "Collapsed bottom panel" : "Workspace summary and selection details"}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCollapsed((current) => !current)}
-          style={{
-            padding: "6px 10px",
-            borderRadius: 999,
-            border: `1px solid ${UI_COLORS.borderMid}`,
-            background: UI_COLORS.white,
-            color: UI_COLORS.slate800,
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          {collapsed ? "Expand dock" : "Minimize dock"}
-        </button>
-      </div>
+      />
 
-      {!collapsed ? (
+      <div style={{ display: "flex", height: "100%", minHeight: 0 }}>
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 12,
-            padding: 14,
+            width: leftPaneWidth,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            background: UI_COLORS.white,
+            padding: "10px 12px",
           }}
         >
-          <DockMetric label="Qubits" value={String(nQ)} />
-          <DockMetric label="Columns" value={String(nS)} />
-          <DockMetric label="Registers" value={String(classicalRegisterCount)} />
-          <DockMetric label="Custom Gates" value={String(customGateCount)} />
-          <DockMetric label="Errors" value={errorSteps === 0 ? "None" : `${errorSteps} column${errorSteps === 1 ? "" : "s"}`} />
-          <DockMetric label="Selection" value={selectionSummary(selectedElement, selectedCount)} wide />
+          <StateVectorPanel debugStateVector={debugStateVector} qubitCount={nQ} />
         </div>
-      ) : null}
-    </div>
-  );
-}
 
-function DockMetric({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
-  return (
-    <div
-      style={{
-        padding: "10px 12px",
-        borderRadius: 8,
-        border: `1px solid ${UI_COLORS.borderLight}`,
-        background: UI_COLORS.white,
-        minHeight: 72,
-        gridColumn: wide ? "1 / -1" : undefined,
-      }}
-    >
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, color: UI_COLORS.slate400, textTransform: "uppercase" }}>
-        {label}
+        <div
+          onPointerDown={startSplitResize}
+          style={{
+            width: 8,
+            cursor: "ew-resize",
+            background: `linear-gradient(90deg, ${UI_COLORS.white} 0, ${UI_COLORS.white} 3px, ${UI_COLORS.borderLight} 3px, ${UI_COLORS.borderLight} 4px, ${UI_COLORS.white} 4px, ${UI_COLORS.white} 100%)`,
+            flexShrink: 0,
+          }}
+        />
+
+        <div style={{ flex: 1, minWidth: 0, background: UI_COLORS.white }} />
       </div>
-      <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5, color: UI_COLORS.slate800 }}>{value}</div>
     </div>
   );
 }
 
-function selectionSummary(selectedElement: CanvasElement | null, selectedCount: number) {
-  if (selectedCount > 1) {
-    return `${selectedCount} elements selected`;
+function StateVectorPanel({
+  debugStateVector,
+  qubitCount,
+}: {
+  debugStateVector: DebugStateVector | null;
+  qubitCount: number;
+}) {
+  const [viewMode, setViewMode] = useState<"state" | "sorted">("state");
+  const amplitudes = debugStateVector?.amplitudes ?? [];
+
+  let bars: StateVectorPlotDatum[] = [];
+  let emptyMessage: string | undefined;
+
+  if (qubitCount > 8) {
+    emptyMessage = "State vector hidden above 8 qubits";
+  } else if (amplitudes.length === 0) {
+    emptyMessage = "No debug amplitudes";
+  } else {
+    bars = buildPlotData(amplitudes, qubitCount, viewMode);
   }
 
-  if (!selectedElement) {
-    return "Nothing selected";
-  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0 }}>
+      <select
+        value={viewMode}
+        onChange={(event) => setViewMode(event.target.value === "sorted" ? "sorted" : "state")}
+        style={selectStyle}
+      >
+        <option value="state">State vector in bar diagram</option>
+        <option value="sorted">Sorted most probable states</option>
+      </select>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <StateVectorPlot bars={bars} emptyMessage={emptyMessage} />
+      </div>
+    </div>
+  );
+}
 
-  if (selectedElement.type === "cctrl") {
-    return `Condition on ${selectedElement.condition ? describeExpr(selectedElement.condition) : "register"} at col ${selectedElement.step}`;
-  }
+const selectStyle = {
+  width: 260,
+  maxWidth: "100%",
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: `1px solid ${UI_COLORS.borderMid}`,
+  background: UI_COLORS.white,
+  color: UI_COLORS.slate800,
+  fontSize: 11,
+  fontWeight: 600,
+} satisfies CSSProperties;
 
-  const location = selectedElement.type === "jump" ? `col ${selectedElement.step}` : `q${selectedElement.qubit} at col ${selectedElement.step}`;
+function buildPlotData(
+  amplitudes: DebugStateVector["amplitudes"],
+  qubitCount: number,
+  viewMode: "state" | "sorted",
+): StateVectorPlotDatum[] {
+  const bars = amplitudes.map((amplitude, index) => ({
+    index,
+    label: `|${index.toString(2).padStart(qubitCount, "0")}>`,
+    probability: magnitudeSquared(amplitude.real, amplitude.imag),
+    phase: Math.atan2(amplitude.imag, amplitude.real),
+    real: amplitude.real,
+    imag: amplitude.imag,
+  }));
 
-  switch (selectedElement.type) {
-    case "ctrl":
-      return `Control on ${location}`;
-    case "swap":
-      return `Swap node on ${location}`;
-    case "custom":
-      return `Custom gate ${selectedElement.classifier} on ${location}`;
-    case "measurement":
-      return `Measurement on ${location}${selectedElement.registerName ? ` -> ${selectedElement.registerName}[${selectedElement.bitIndex ?? "?"}]` : ""}`;
-    case "assign":
-      return `Assign on ${location}${selectedElement.registerName ? ` -> ${selectedElement.registerName}` : ""} = ${describeExpr(selectedElement.expr)}`;
-    case "reset":
-      return `${CLASSICAL_OP_DEFS.reset.description} on ${location}`;
-    case "jump":
-      return `Jump at ${location}${selectedElement.targetStep != null ? ` -> col ${selectedElement.targetStep}` : ""}`;
-    case "unitary": {
-      const params =
-        selectedElement.params && selectedElement.params.length > 0
-          ? ` (${selectedElement.params.map((value) => fmt(value)).join(", ")})`
-          : "";
-      return `${UNITARY_OP_DEFS[selectedElement.kind].description}${params} on ${location}`;
-    }
-  }
+  return viewMode === "sorted"
+    ? [...bars].sort((a, b) => b.probability - a.probability).slice(0, 32)
+    : bars;
+}
+
+function magnitudeSquared(real: number, imag: number) {
+  return real * real + imag * imag;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
