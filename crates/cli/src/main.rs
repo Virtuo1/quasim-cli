@@ -6,6 +6,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use quasim::{circuit::Circuit, debug_terminal::DebugTerminal, sv_simulator::SVSimulatorDebugger};
+use quasim_backend::circuit_parse::SerializedCircuit;
 use quasim_backend::web_server::{ServerOptions, run_server};
 
 #[derive(Debug, Parser)]
@@ -68,9 +69,24 @@ async fn main() -> Result<()> {
         }
 
         Command::Debug { circuit_file } => {
-            let test_circ = Circuit::new(3).h(0).cx(&[0], 2).cx(&[2], 1);
+            let circuit = match circuit_file {
+                Some(path) => {
+                    let path_display = path.display().to_string();
+                    let serialized = SerializedCircuit::from_json_file(
+                        path.to_str()
+                            .context("circuit file path must be valid UTF-8")?,
+                    )
+                    .with_context(|| {
+                        format!("failed to load serialized circuit from {path_display}")
+                    })?;
+                    serialized.into_circuit().with_context(|| {
+                        format!("failed to convert serialized circuit from {path_display}")
+                    })?
+                }
+                None => Circuit::new(0),
+            };
 
-            let mut term = DebugTerminal::<SVSimulatorDebugger>::new(test_circ)
+            let mut term = DebugTerminal::<SVSimulatorDebugger>::new(circuit)
                 .expect("Test could not build debug terminal");
 
             term.run().map_err(Into::into)

@@ -2,14 +2,14 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useRef, useState } from "react";
 
 import { UI_COLORS } from "../constants";
-import type { ClassicalRegister, DebugClassicalRegisterValues, DebugStateVector } from "../types";
+import type { ClassicalRegister, DebugClassicalRegisterValues, StateVector } from "../types";
 import { DebugValueTrackerPanel } from "./DebugValueTrackerPanel";
 import { StateVectorPlot, type StateVectorPlotDatum } from "./StateVectorPlot";
 
 interface DockPanelProps {
   nQ: number;
   classicalRegs: ClassicalRegister[];
-  debugStateVector: DebugStateVector | null;
+  stateVector: StateVector | null;
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
 }
 
@@ -18,7 +18,7 @@ const MAX_DOCK_HEIGHT = 600;
 const MIN_LEFT_PANE_WIDTH = 280;
 const MIN_RIGHT_PANE_WIDTH = 400;
 
-export function DockPanel({ nQ, classicalRegs, debugStateVector, debugClassicalRegisterValues }: DockPanelProps) {
+export function DockPanel({ nQ, classicalRegs, stateVector, debugClassicalRegisterValues }: DockPanelProps) {
   const dockRef = useRef<HTMLDivElement | null>(null);
   const [dockHeight, setDockHeight] = useState(240);
   const [leftPaneWidth, setLeftPaneWidth] = useState(520);
@@ -99,7 +99,7 @@ export function DockPanel({ nQ, classicalRegs, debugStateVector, debugClassicalR
             padding: "10px 12px",
           }}
         >
-          <StateVectorPanel debugStateVector={debugStateVector} qubitCount={nQ} />
+          <StateVectorPanel stateVector={stateVector} qubitCount={nQ} />
         </div>
 
         <div
@@ -117,7 +117,7 @@ export function DockPanel({ nQ, classicalRegs, debugStateVector, debugClassicalR
             nQ={nQ}
             classicalRegs={classicalRegs}
             debugClassicalRegisterValues={debugClassicalRegisterValues}
-            debugStateVector={debugStateVector}
+            stateVector={stateVector}
           />
         </div>
       </div>
@@ -126,19 +126,20 @@ export function DockPanel({ nQ, classicalRegs, debugStateVector, debugClassicalR
 }
 
 function StateVectorPanel({
-  debugStateVector,
+  stateVector,
   qubitCount,
 }: {
-  debugStateVector: DebugStateVector | null;
+  stateVector: StateVector | null;
   qubitCount: number;
 }) {
   const [viewMode, setViewMode] = useState<"state" | "sorted">("state");
-  const amplitudes = debugStateVector?.amplitudes ?? [];
+  const amplitudes = stateVector?.amplitudes ?? [];
+  const stateVectorHidden = viewMode === "state" && qubitCount > 8;
 
   let bars: StateVectorPlotDatum[] = [];
   let emptyMessage: string | undefined;
 
-  if (qubitCount > 8) {
+  if (stateVectorHidden) {
     emptyMessage = "State vector hidden above 8 qubits";
   } else if (amplitudes.length === 0) {
     emptyMessage = "No debug amplitudes";
@@ -148,14 +149,23 @@ function StateVectorPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0 }}>
-      <select
-        value={viewMode}
-        onChange={(event) => setViewMode(event.target.value === "sorted" ? "sorted" : "state")}
-        style={selectStyle}
-      >
-        <option value="state">State vector in bar diagram</option>
-        <option value="sorted">Sorted most probable states</option>
-      </select>
+      <div style={controlRowStyle}>
+        <select
+          value={viewMode}
+          onChange={(event) => setViewMode(event.target.value === "sorted" ? "sorted" : "state")}
+          style={selectStyle}
+        >
+          <option value="state">Statevector diagram</option>
+          <option value="sorted">Most probable states</option>
+        </select>
+        <div style={selectHintStyle}>
+          {viewMode === "state"
+            ? qubitCount > 8
+              ? "Raw basis-order plot is limited to 8 qubits"
+              : "Basis states in computational order"
+            : "Top 32 states by probability"}
+        </div>
+      </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <StateVectorPlot bars={bars} emptyMessage={emptyMessage} />
       </div>
@@ -164,7 +174,7 @@ function StateVectorPanel({
 }
 
 const selectStyle = {
-  width: 260,
+  flexShrink: 0,
   maxWidth: "100%",
   padding: "6px 10px",
   borderRadius: 8,
@@ -175,18 +185,34 @@ const selectStyle = {
   fontWeight: 600,
 } satisfies CSSProperties;
 
+const controlRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  minWidth: 0,
+} satisfies CSSProperties;
+
+const selectHintStyle = {
+  minWidth: 0,
+  fontSize: 11,
+  color: UI_COLORS.slate500,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+} satisfies CSSProperties;
+
 function buildPlotData(
-  amplitudes: DebugStateVector["amplitudes"],
+  amplitudes: StateVector["amplitudes"],
   qubitCount: number,
   viewMode: "state" | "sorted",
 ): StateVectorPlotDatum[] {
   const bars = amplitudes.map((amplitude, index) => ({
     index,
     label: `|${index.toString(2).padStart(qubitCount, "0")}>`,
-    probability: magnitudeSquared(amplitude.real, amplitude.imag),
-    phase: Math.atan2(amplitude.imag, amplitude.real),
-    real: amplitude.real,
-    imag: amplitude.imag,
+    probability: magnitudeSquared(amplitude.re, amplitude.im),
+    phase: Math.atan2(amplitude.im, amplitude.re),
+    real: amplitude.re,
+    imag: amplitude.im,
   }));
 
   return viewMode === "sorted"

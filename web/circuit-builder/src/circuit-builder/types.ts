@@ -238,15 +238,15 @@ export interface CustomGateModalState {
 }
 
 export interface ComplexAmplitude {
-  real: number;
-  imag: number;
+  re: number;
+  im: number;
 }
 
-export interface DebugStateVector {
+export interface StateVector {
   amplitudes: ComplexAmplitude[];
 }
 
-export type DebugClassicalRegisterValue = number | string | boolean | null;
+export type DebugClassicalRegisterValue = ExprValue;
 
 export type DebugClassicalRegisterValues = Record<string, DebugClassicalRegisterValue>;
 

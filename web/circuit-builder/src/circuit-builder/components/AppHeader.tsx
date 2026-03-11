@@ -5,6 +5,7 @@ interface AppHeaderProps {
   nQ: number;
   nS: number;
   classicalRegisterCount: number;
+  onRun: () => void;
   onAddQubit: () => void;
   onRemoveQubit: () => void;
   onImport: () => void;
@@ -16,6 +17,7 @@ export function AppHeader({
   nQ,
   nS,
   classicalRegisterCount,
+  onRun,
   onAddQubit,
   onRemoveQubit,
   onImport,
@@ -48,6 +50,7 @@ export function AppHeader({
       <HeaderButton onClick={onExport} accent>
         Export JSON
       </HeaderButton>
+      <HeaderButton onClick={onRun}>Run</HeaderButton>
       <HeaderButton onClick={onClear} danger>
         Clear
       </HeaderButton>

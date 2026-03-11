@@ -14,3 +14,5 @@ serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
+uuid = { version = "1", features = ["v4", "serde"] }
+nalgebra = "0.34.1"

@@ -18,7 +18,7 @@ export function useCircuitEditor(args: UseCircuitEditorArgs): UseCircuitEditorRe
       classicalRegs: document.classicalRegs,
       customGateDefinitions: document.customGateDefinitions,
       newRegName: document.newRegName,
-      debugStateVector: document.debugStateVector,
+      stateVector: document.stateVector,
       debugClassicalRegisterValues: document.debugClassicalRegisterValues,
       selectedIds: ui.selectedIds,
       parameterModal: ui.parameterModal,

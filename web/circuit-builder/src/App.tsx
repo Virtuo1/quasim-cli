@@ -14,6 +14,8 @@ import { JumpModal } from "./circuit-builder/components/modals/JumpModal";
 import { ParameterModal } from "./circuit-builder/components/modals/ParameterModal";
 import { UI_COLORS } from "./circuit-builder/constants";
 import { useCircuitEditor } from "./circuit-builder/hooks/useCircuitEditor";
+import { runCircuit } from "./circuit-builder/utils/api";
+import { serializeCircuit } from "./circuit-builder/utils/circuit";
 
 const MIN_PALETTE_WIDTH = 180;
 const MAX_PALETTE_WIDTH = 500;
@@ -23,6 +25,22 @@ function App() {
   const contRef = useRef<HTMLDivElement | null>(null);
   const [paletteWidth, setPaletteWidth] = useState(232);
   const { state, actions } = useCircuitEditor({ svgRef, contRef });
+
+  const handleRun = async () => {
+    try {
+      const serializedCircuit = serializeCircuit({
+        qubits: state.nQ,
+        steps: state.nS,
+        classicalRegisters: state.classicalRegs,
+        elements: state.elements,
+        customGateDefinitions: state.customGateDefinitions,
+      });
+      const response = await runCircuit(serializedCircuit);
+      console.log(response);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const startPaletteResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -61,6 +79,7 @@ function App() {
         nQ={state.nQ}
         nS={state.nS}
         classicalRegisterCount={state.classicalRegs.length}
+        onRun={handleRun}
         onAddQubit={actions.addQubit}
         onRemoveQubit={actions.removeQubit}
         onImport={actions.importJSON}
@@ -131,7 +150,7 @@ function App() {
           <DockPanel
             nQ={state.nQ}
             classicalRegs={state.classicalRegs}
-            debugStateVector={state.debugStateVector}
+            stateVector={state.stateVector}
             debugClassicalRegisterValues={state.debugClassicalRegisterValues}
           />
         </div>

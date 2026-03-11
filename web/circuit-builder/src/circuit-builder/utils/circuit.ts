@@ -7,4 +7,4 @@ export {
   getConnectorLinesWithCustoms,
   measurementWireLine,
 } from "./analysis";
-export { deserializeCircuit, exportCircuitToFile } from "./serialization";
+export { deserializeCircuit, exportCircuitToFile, serializeCircuit } from "./serialization";

@@ -168,28 +168,12 @@ impl TryFrom<SerializedCircuit> for Circuit {
         }
 
         let mut step = 0;
-        let mut step_to_pc = HashMap::<usize, usize>::new();
-
-        // Repeated code, remove and fix later maybe
-        step_to_pc.insert(step, circuit.instructions().len());
-
-        circuit = circuit.label(get_step_label(step));
-
-        if let Some(expr) = step_to_condition.get(&0) {
-            circuit = circuit.jump_if(expr.clone(), get_step_label(1))
-        }
+        circuit = begin_step(circuit, step, &step_to_condition);
 
         for op in value.instructions {
             if op.step > step {
                 step = op.step;
-
-                step_to_pc.insert(step, circuit.instructions().len());
-
-                circuit = circuit.label(get_step_label(step));
-
-                if let Some(expr) = step_to_condition.get(&step) {
-                    circuit = circuit.jump_if(expr.clone(), get_step_label(step + 1))
-                }
+                circuit = begin_step(circuit, step, &step_to_condition);
             }
 
             circuit = match op.kind {
@@ -259,12 +243,28 @@ impl TryFrom<SerializedCircuit> for Circuit {
             }
         }
 
+        circuit = circuit.label(get_step_label(step + 1));
+
         if circuit.has_unresolved_labels() {
             Err(JsonParseError::UnresolvedLabel)
         } else {
             Ok(circuit)
         }
     }
+}
+
+fn begin_step(
+    mut circuit: Circuit,
+    step: usize,
+    step_to_condition: &HashMap<usize, Expr>,
+) -> Circuit {
+    circuit = circuit.label(get_step_label(step));
+
+    if let Some(expr) = step_to_condition.get(&step) {
+        circuit = circuit.jump_if(!expr.clone(), get_step_label(step + 1));
+    }
+
+    circuit
 }
 
 fn apply_unitary(

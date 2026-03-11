@@ -12,7 +12,7 @@ import type {
   ClassicalRegister,
   ClassicalRegisterModalState,
   DebugClassicalRegisterValues,
-  DebugStateVector,
+  StateVector,
   ConditionModalState,
   CustomGateDefinition,
   CustomGateModalState,
@@ -39,7 +39,7 @@ export interface CircuitDocumentState {
   classicalRegs: ClassicalRegister[];
   customGateDefinitions: CustomGateDefinition[];
   newRegName: string;
-  debugStateVector: DebugStateVector | null;
+  stateVector: StateVector | null;
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
 }
 
@@ -94,7 +94,7 @@ export interface CircuitDocumentStore extends CircuitDocumentState, CircuitEdito
   setCregs: Dispatch<SetStateAction<ClassicalRegister[]>>;
   setCustomGateDefinitions: Dispatch<SetStateAction<CustomGateDefinition[]>>;
   setNewRegName: Dispatch<SetStateAction<string>>;
-  setDebugStateVector: Dispatch<SetStateAction<DebugStateVector | null>>;
+  setstateVector: Dispatch<SetStateAction<StateVector | null>>;
   setDebugClassicalRegisterValues: Dispatch<SetStateAction<DebugClassicalRegisterValues>>;
 }
 
@@ -129,7 +129,7 @@ export interface CircuitEditorActions {
   setHoveredJumpTargetStep: Dispatch<SetStateAction<number | null>>;
   setCustomGateModal: Dispatch<SetStateAction<CustomGateModalState | null>>;
   setNewRegName: Dispatch<SetStateAction<string>>;
-  setDebugStateVector: Dispatch<SetStateAction<DebugStateVector | null>>;
+  setstateVector: Dispatch<SetStateAction<StateVector | null>>;
   setDebugClassicalRegisterValues: Dispatch<SetStateAction<DebugClassicalRegisterValues>>;
   handleKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   startCanvasSelection: (event: ReactPointerEvent<SVGSVGElement>) => void;

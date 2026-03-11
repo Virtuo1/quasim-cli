@@ -11,19 +11,21 @@ import { analyzeStep } from "./analysis";
 import { deserializeCustomGateDefinitions, serializeCustomGateDefinitions } from "./customGates";
 import { exprRegisters } from "./conditions";
 
-export function exportCircuitToFile({
-  qubits,
-  steps,
-  classicalRegisters,
-  elements,
-  customGateDefinitions,
-}: {
+interface SerializeCircuitArgs {
   qubits: number;
   steps: number;
   classicalRegisters: ClassicalRegister[];
   elements: CanvasElement[];
   customGateDefinitions: CustomGateDefinition[];
-}) {
+}
+
+export function serializeCircuit({
+  qubits,
+  steps,
+  classicalRegisters,
+  elements,
+  customGateDefinitions,
+}: SerializeCircuitArgs): SerializedCircuit {
   const gates: OperationDefinition[] = [];
   const conditions: SerializedCondition[] = [];
 
@@ -129,7 +131,7 @@ export function exportCircuitToFile({
     }
   }
 
-  const data: SerializedCircuit = {
+  return {
     qubits,
     steps,
     classicalRegisters: classicalRegisters.map((register) => register.name),
@@ -137,6 +139,10 @@ export function exportCircuitToFile({
     instructions: gates,
     conditions,
   };
+}
+
+export function exportCircuitToFile(args: SerializeCircuitArgs) {
+  const data = serializeCircuit(args);
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;

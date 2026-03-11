@@ -6,14 +6,14 @@ import type {
   ClassicalRegister,
   DebugClassicalRegisterValue,
   DebugClassicalRegisterValues,
-  DebugStateVector,
+  StateVector,
 } from "../types";
 
 interface DebugValueTrackerPanelProps {
   nQ: number;
   classicalRegs: ClassicalRegister[];
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
-  debugStateVector: DebugStateVector | null;
+  stateVector: StateVector | null;
 }
 
 type TrackerEntry =
@@ -26,7 +26,7 @@ export function DebugValueTrackerPanel({
   nQ,
   classicalRegs,
   debugClassicalRegisterValues,
-  debugStateVector,
+  stateVector,
 }: DebugValueTrackerPanelProps) {
   const nextEntryIdRef = useRef(1);
   const [draftKind, setDraftKind] = useState<TrackerDraftKind>("creg");
@@ -45,7 +45,7 @@ export function DebugValueTrackerPanel({
     }
   }, [classicalRegs, draftRegisterName]);
 
-  const amplitudeCount = debugStateVector?.amplitudes.length ?? 2 ** nQ;
+  const amplitudeCount = stateVector?.amplitudes.length ?? 2 ** nQ;
   const basisInputError = useMemo(
     () => validateBasisInput(draftBasisInput, amplitudeCount),
     [amplitudeCount, draftBasisInput],
@@ -145,7 +145,7 @@ export function DebugValueTrackerPanel({
               key={entry.id}
               entry={entry}
               nQ={nQ}
-              debugStateVector={debugStateVector}
+              stateVector={stateVector}
               debugClassicalRegisterValues={debugClassicalRegisterValues}
               onRemove={() => removeEntry(entry.id)}
             />
@@ -159,18 +159,18 @@ export function DebugValueTrackerPanel({
 function TrackedValueRow({
   entry,
   nQ,
-  debugStateVector,
+  stateVector,
   debugClassicalRegisterValues,
   onRemove,
 }: {
   entry: TrackerEntry;
   nQ: number;
-  debugStateVector: DebugStateVector | null;
+  stateVector: StateVector | null;
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
   onRemove: () => void;
 }) {
   if (entry.kind === "creg") {
-    const value = entry.registerName in debugClassicalRegisterValues ? debugClassicalRegisterValues[entry.registerName] : null;
+    const value = debugClassicalRegisterValues[entry.registerName];
 
     return (
       <div style={rowStyle}>
@@ -181,11 +181,11 @@ function TrackedValueRow({
         <div style={valueCellStyle}>
           <div style={valueLineStyle}>
             <span style={metricLabelStyle}>value</span>
-            <span style={valueStyle}>{formatRegisterValue(value)}</span>
+            <span style={valueStyle}>{value ? formatRegisterValue(value) : "Unavailable"}</span>
           </div>
           <div style={metaLineStyle}>
             <span style={metricLabelStyle}>type</span>
-            <span style={metaValueStyle}>{formatRegisterValueType(value)}</span>
+            <span style={metaValueStyle}>{value ? formatRegisterValueType(value) : "Unavailable"}</span>
           </div>
         </div>
         <button type="button" onClick={onRemove} style={removeButtonStyle}>
@@ -195,7 +195,7 @@ function TrackedValueRow({
     );
   }
 
-  const amplitude = debugStateVector?.amplitudes[entry.basisIndex] ?? null;
+  const amplitude = stateVector?.amplitudes[entry.basisIndex] ?? null;
 
   return (
     <div style={rowStyle}>
@@ -207,14 +207,14 @@ function TrackedValueRow({
         <div style={valueLineStyle}>
           <span style={metricLabelStyle}>value</span>
           <span style={valueStyle}>
-            {amplitude ? `${formatComplex(amplitude.real)} ${formatComplex(amplitude.imag, "i")}` : "Unavailable"}
+            {amplitude ? `${formatComplex(amplitude.re)} ${formatComplex(amplitude.im, "i")}` : "Unavailable"}
           </span>
         </div>
         <div style={metaLineStyle}>
           <span style={metricLabelStyle}>P</span>
           <span style={metaValueStyle}>
             {amplitude
-              ? (amplitude.real * amplitude.real + amplitude.imag * amplitude.imag).toFixed(6)
+              ? (amplitude.re * amplitude.re + amplitude.im * amplitude.im).toFixed(6)
               : "State vector unavailable"}
           </span>
         </div>
@@ -265,27 +265,27 @@ function parseBasisInput(input: string, amplitudeCount: number) {
 }
 
 function formatRegisterValue(value: DebugClassicalRegisterValue) {
-  if (value == null) {
-    return "Unavailable";
+  if ("Int" in value) {
+    return String(value.Int);
   }
 
-  return typeof value === "string" ? value : String(value);
+  if ("Float" in value) {
+    return String(value.Float);
+  }
+
+  return String(value.Bool);
 }
 
 function formatRegisterValueType(value: DebugClassicalRegisterValue) {
-  if (value == null) {
-    return "null";
+  if ("Int" in value) {
+    return "int";
   }
 
-  if (typeof value === "boolean") {
-    return "bool";
+  if ("Float" in value) {
+    return "float";
   }
 
-  if (typeof value === "number") {
-    return Number.isInteger(value) ? "int" : "float";
-  }
-
-  return "string";
+  return "bool";
 }
 
 function formatBasisLabel(index: number, qubitCount: number) {

@@ -788,7 +788,7 @@ export function useCircuitEditorCommands(
     setHoveredJumpTargetStep: ui.setHoveredJumpTargetStep,
     setCustomGateModal: ui.setCustomGateModal,
     setNewRegName: doc.setNewRegName,
-    setDebugStateVector: doc.setDebugStateVector,
+    setstateVector: doc.setstateVector,
     setDebugClassicalRegisterValues: doc.setDebugClassicalRegisterValues,
     handleKeyDown,
     startCanvasSelection,

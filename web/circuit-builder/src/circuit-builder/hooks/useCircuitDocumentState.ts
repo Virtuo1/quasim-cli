@@ -6,7 +6,7 @@ import type {
   ClassicalRegister,
   CustomGateDefinition,
   DebugClassicalRegisterValues,
-  DebugStateVector,
+  StateVector,
 } from "../types";
 import { compact } from "../utils/circuit";
 import type { CircuitDocumentStore, ElementUpdater } from "./circuitEditorTypes";
@@ -20,7 +20,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
   const [classicalRegs, setCregs] = useState<ClassicalRegister[]>([]);
   const [customGateDefinitions, setCustomGateDefinitions] = useState<CustomGateDefinition[]>([]);
   const [newRegName, setNewRegName] = useState("");
-  const [debugStateVector, setDebugStateVector] = useState<DebugStateVector | null>(null);
+  const [stateVector, setstateVector] = useState<StateVector | null>(null);
   const [debugClassicalRegisterValues, setDebugClassicalRegisterValues] = useState<DebugClassicalRegisterValues>({});
 
   const elementsRef = useSyncedRef(elements);
@@ -31,7 +31,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
 
   useEffect(() => {
     if (USE_MOCK_DEBUG_STATE_VECTOR) {
-      setDebugStateVector(createMockDebugStateVector(nQ));
+      setstateVector(createMockstateVector(nQ));
       setDebugClassicalRegisterValues(createMockDebugClassicalRegisterValues(classicalRegs, nQ));
     }
   }, [classicalRegs, nQ]);
@@ -52,7 +52,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
     classicalRegs,
     customGateDefinitions,
     newRegName,
-    debugStateVector,
+    stateVector,
     debugClassicalRegisterValues,
     elementsRef,
     nQRef,
@@ -65,7 +65,7 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
     setCregs,
     setCustomGateDefinitions,
     setNewRegName,
-    setDebugStateVector,
+    setstateVector,
     setDebugClassicalRegisterValues,
   };
 }
@@ -80,25 +80,25 @@ function useSyncedRef<T>(value: T) {
   return ref;
 }
 
-function createMockDebugStateVector(qubitCount: number): DebugStateVector {
+function createMockstateVector(qubitCount: number): StateVector {
   const amplitudeCount = 2 ** qubitCount;
   const amplitudes = Array.from({ length: amplitudeCount }, (_, index) => {
     const envelope = 0.18 + 0.82 * Math.abs(Math.sin(index * 0.17) * Math.cos(index * 0.043));
     const phase = index * 0.31;
     return {
-      real: Math.cos(phase) * envelope,
-      imag: Math.sin(phase) * envelope * 0.7,
+      re: Math.cos(phase) * envelope,
+      im: Math.sin(phase) * envelope * 0.7,
     };
   });
 
   const norm = Math.sqrt(
-    amplitudes.reduce((sum, amplitude) => sum + amplitude.real * amplitude.real + amplitude.imag * amplitude.imag, 0),
+    amplitudes.reduce((sum, amplitude) => sum + amplitude.re * amplitude.re + amplitude.im * amplitude.im, 0),
   );
 
   return {
     amplitudes: amplitudes.map((amplitude) => ({
-      real: amplitude.real / norm,
-      imag: amplitude.imag / norm,
+      re: amplitude.re / norm,
+      im: amplitude.im / norm,
     })),
   };
 }
@@ -108,6 +108,6 @@ function createMockDebugClassicalRegisterValues(
   qubitCount: number,
 ): DebugClassicalRegisterValues {
   return Object.fromEntries(
-    classicalRegs.map((register, index) => [register.name, ((index + 1) * 3 + qubitCount) % 16]),
+    classicalRegs.map((register, index) => [register.name, { Int: ((index + 1) * 3 + qubitCount) % 16 }]),
   );
 }
