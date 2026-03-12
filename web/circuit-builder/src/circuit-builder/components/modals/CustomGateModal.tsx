@@ -3,6 +3,16 @@ import { useEffect, useState } from "react";
 import { UI_COLORS } from "../../constants";
 import type { CustomGateModalState } from "../../types";
 import { ModalFrame } from "./ModalFrame";
+import {
+  modalActionsStyle,
+  modalDangerPanelStyle,
+  modalFieldLabelStyle,
+  modalInputStyle,
+  modalPrimaryButtonStyle,
+  modalSecondaryButtonStyle,
+  modalSubtitleStyle,
+  modalTitleStyle,
+} from "./modalStyles";
 
 interface CustomGateModalProps {
   modal: CustomGateModalState | null;
@@ -33,28 +43,12 @@ export function CustomGateModal({
 
   return (
     <ModalFrame width={360}>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Create Custom Gate</div>
-      <div style={{ fontSize: 12, color: UI_COLORS.slate500, marginBottom: 16 }}>
+      <div style={modalTitleStyle}>Create Custom Gate</div>
+      <div style={modalSubtitleStyle}>
         Group the current quantum selection into a reusable gate.
       </div>
-      {validationError ? (
-        <div
-          style={{
-            padding: "10px 12px",
-            marginBottom: 16,
-            background: UI_COLORS.rose50,
-            border: `1px solid ${UI_COLORS.red100}`,
-            borderRadius: 4,
-            color: UI_COLORS.red600,
-            fontSize: 12,
-          }}
-        >
-          {validationError}
-        </div>
-      ) : null}
-      <div style={{ fontSize: 11, fontWeight: 600, color: UI_COLORS.slate700, marginBottom: 6 }}>
-        Unique classifier
-      </div>
+      {validationError ? <div style={modalDangerPanelStyle}>{validationError}</div> : null}
+      <div style={modalFieldLabelStyle}>Unique classifier</div>
       <input
         autoFocus
         value={name}
@@ -66,13 +60,8 @@ export function CustomGateModal({
         }}
         placeholder="e.g. qft_block"
         style={{
-          width: "100%",
-          padding: "7px 9px",
-          border: `1px solid ${UI_COLORS.borderMid}`,
-          borderRadius: 4,
-          fontFamily: "monospace",
+          ...modalInputStyle,
           fontSize: 13,
-          boxSizing: "border-box",
           marginBottom: 10,
         }}
       />
@@ -85,32 +74,15 @@ export function CustomGateModal({
           This name is used in the toolbox and export metadata.
         </div>
       )}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button
-          onClick={onCancel}
-          style={{
-            padding: "6px 16px",
-            border: `1px solid ${UI_COLORS.borderMid}`,
-            borderRadius: 4,
-            background: UI_COLORS.white,
-            cursor: "pointer",
-            fontSize: 13,
-          }}
-        >
+      <div style={modalActionsStyle}>
+        <button onClick={onCancel} style={modalSecondaryButtonStyle}>
           Cancel
         </button>
         <button
           onClick={() => onCreate(name)}
           disabled={!name.trim() || duplicate || !!validationError}
           style={{
-            padding: "6px 16px",
-            border: "none",
-            borderRadius: 4,
-            background: UI_COLORS.slate900,
-            color: UI_COLORS.white,
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 13,
+            ...modalPrimaryButtonStyle,
             opacity: !name.trim() || duplicate || !!validationError ? 0.5 : 1,
           }}
         >

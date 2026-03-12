@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { UI_COLORS } from "../../constants";
+import { controlStyle as sharedControlStyle } from "../../ui/styles";
 import type { AssignElement, AssignModalState, ClassicalRegister, Expr } from "../../types";
 import { describeExpr, validateExpression } from "../../utils/conditions";
 import { ExpressionEditorModal } from "./ExpressionEditorModal";
+import { modalFieldLabelStyle, modalWarningPanelStyle } from "./modalStyles";
 
 interface AssignModalProps {
   modal: AssignModalState | null;
@@ -73,28 +74,17 @@ const fieldBlockStyle: React.CSSProperties = {
 };
 
 const fieldLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: UI_COLORS.slate500,
-  letterSpacing: 0.2,
+  ...modalFieldLabelStyle,
 };
 
 const controlStyle: React.CSSProperties = {
+  ...sharedControlStyle(),
   width: "100%",
-  padding: "7px 9px",
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  borderRadius: 4,
   fontFamily: "monospace",
   fontSize: 12,
-  background: UI_COLORS.white,
   boxSizing: "border-box",
 };
 
 const warningStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  background: UI_COLORS.yellow50,
-  border: `1px solid ${UI_COLORS.yellow200}`,
-  color: UI_COLORS.yellow800,
-  fontSize: 11,
-  borderRadius: 4,
+  ...modalWarningPanelStyle,
 };

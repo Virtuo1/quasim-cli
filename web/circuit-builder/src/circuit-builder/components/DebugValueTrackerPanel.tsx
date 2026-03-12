@@ -8,6 +8,7 @@ import type {
   DebugClassicalRegisterValues,
   StateVector,
 } from "../types";
+import { buttonStyle, controlStyle, subtleTextStyle } from "../ui/styles";
 
 interface DebugValueTrackerPanelProps {
   nQ: number;
@@ -313,41 +314,23 @@ const controlsStyle = {
 } satisfies CSSProperties;
 
 const compactSelectStyle = {
-  padding: "6px 10px",
-  borderRadius: 8,
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  background: UI_COLORS.white,
-  color: UI_COLORS.slate800,
-  fontSize: 11,
+  ...controlStyle(),
   fontWeight: 600,
   minWidth: 0,
 } satisfies CSSProperties;
 
 const fieldStyle = {
+  ...controlStyle(),
   minWidth: 0,
-  padding: "6px 10px",
-  borderRadius: 8,
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  background: UI_COLORS.white,
-  color: UI_COLORS.slate800,
-  fontSize: 11,
 } satisfies CSSProperties;
 
 const addButtonStyle = {
-  padding: "6px 10px",
-  borderRadius: 8,
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  background: UI_COLORS.slate900,
-  color: UI_COLORS.white,
-  fontSize: 11,
-  fontWeight: 600,
-  cursor: "pointer",
+  ...buttonStyle({ tone: "primary", variant: "solid" }),
 } satisfies CSSProperties;
 
 const hintStyle = {
+  ...subtleTextStyle,
   marginTop: 8,
-  fontSize: 11,
-  color: UI_COLORS.slate500,
 } satisfies CSSProperties;
 
 const entriesStyle = {

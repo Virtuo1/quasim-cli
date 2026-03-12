@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 
 import { UI_COLORS } from "../constants";
 import type { ClassicalRegister, DebugClassicalRegisterValues, StateVector } from "../types";
+import { controlStyle, splitHandleStyle, subtleTextStyle } from "../ui/styles";
 import { DebugValueTrackerPanel } from "./DebugValueTrackerPanel";
 import { StateVectorPlot, type StateVectorPlotDatum } from "./StateVectorPlot";
 
@@ -105,10 +106,8 @@ export function DockPanel({ nQ, classicalRegs, stateVector, debugClassicalRegist
         <div
           onPointerDown={startSplitResize}
           style={{
-            width: 8,
-            cursor: "ew-resize",
+            ...splitHandleStyle(),
             background: `linear-gradient(90deg, ${UI_COLORS.white} 0, ${UI_COLORS.white} 3px, ${UI_COLORS.borderLight} 3px, ${UI_COLORS.borderLight} 4px, ${UI_COLORS.white} 4px, ${UI_COLORS.white} 100%)`,
-            flexShrink: 0,
           }}
         />
 
@@ -174,14 +173,9 @@ function StateVectorPanel({
 }
 
 const selectStyle = {
+  ...controlStyle(),
   flexShrink: 0,
   maxWidth: "100%",
-  padding: "6px 10px",
-  borderRadius: 8,
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  background: UI_COLORS.white,
-  color: UI_COLORS.slate800,
-  fontSize: 11,
   fontWeight: 600,
 } satisfies CSSProperties;
 
@@ -193,9 +187,8 @@ const controlRowStyle = {
 } satisfies CSSProperties;
 
 const selectHintStyle = {
+  ...subtleTextStyle,
   minWidth: 0,
-  fontSize: 11,
-  color: UI_COLORS.slate500,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",

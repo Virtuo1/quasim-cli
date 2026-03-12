@@ -1,5 +1,6 @@
 import { CONNECTOR_BLACK, CLASSICAL_OP_DEFS, CLASSICAL_OP_KINDS, UI_COLORS, UNITARY_OP_DEFS, UNITARY_GATE_KINDS, unitaryGateSupportsParam } from "../constants";
 import type { CanvasElement, ClassicalRegister, CustomGateDefinition, PaletteDragSpec } from "../types";
+import { buttonStyle, controlStyle, gateChipStyle, panelCardStyle, sectionIntroStyle, sectionTitleStyle } from "../ui/styles";
 import { describeExpr, exprRegisters } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
@@ -60,13 +61,7 @@ export function PalettePanel({
       }}
     >
       <div
-        style={{
-          padding: "8px 10px 5px",
-          fontSize: 10,
-          color: UI_COLORS.slate400,
-          letterSpacing: 0.3,
-          borderBottom: `1px solid ${UI_COLORS.appBg}`,
-        }}
+        style={sectionIntroStyle()}
       >
         Drag elements onto the circuit
       </div>
@@ -82,18 +77,10 @@ export function PalettePanel({
                 title={definition.description}
                 onPointerDown={(event) => onStartPaletteDrag(event, { type: "unitary", kind })}
                 style={{
-                  padding: "5px 8px",
-                  cursor: "grab",
-                  fontFamily: "monospace",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  borderRadius: 3,
+                  ...gateChipStyle(),
                   background: definition.color,
                   color: UI_COLORS.white,
                   border: `1.5px solid ${definition.color}`,
-                  minWidth: 35,
-                  width: "auto",
-                  flex: "0 0 auto",
                 }}
               >
                 {definition.label}
@@ -114,18 +101,10 @@ export function PalettePanel({
                 title={definition.description}
                 onPointerDown={(event) => onStartPaletteDrag(event, { type })}
                 style={{
-                  padding: "5px 8px",
-                  cursor: "grab",
-                  fontFamily: "monospace",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  borderRadius: 3,
+                  ...gateChipStyle(),
                   background: definition.color,
                   color: UI_COLORS.white,
                   border: `1.5px solid ${definition.color}`,
-                  minWidth: 35,
-                  width: "auto",
-                  flex: "0 0 auto",
                 }}
               >
                 {definition.label}
@@ -190,18 +169,10 @@ export function PalettePanel({
                   key={definition.id}
                   onPointerDown={(event) => onStartPaletteDrag(event, { type: "custom", classifier: definition.classifier })}
                   style={{
-                    padding: "5px 8px",
-                    cursor: "grab",
-                    fontFamily: "monospace",
-                    fontWeight: 700,
-                    fontSize: 12,
-                    borderRadius: 3,
+                    ...gateChipStyle(),
                     background: CONNECTOR_BLACK,
                     color: UI_COLORS.white,
                     border: `1.5px solid ${CONNECTOR_BLACK}`,
-                    minWidth: 35,
-                    width: "auto",
-                    flex: "0 0 auto",
                   }}
                 >
                   {definition.classifier}
@@ -269,28 +240,15 @@ export function PalettePanel({
               placeholder="name, e.g. c0"
               style={{
                 flex: 1,
-                padding: "4px 6px",
-                border: `1px solid ${UI_COLORS.borderMid}`,
-                borderRadius: 3,
+                ...controlStyle(),
                 fontFamily: "monospace",
-                fontSize: 11,
                 minWidth: 0,
               }}
             />
             <button
               onClick={onAddRegister}
               disabled={!newRegName.trim() || duplicateRegName}
-              style={{
-                padding: "4px 8px",
-                fontSize: 11,
-                fontWeight: 600,
-                background: UI_COLORS.slate900,
-                color: UI_COLORS.white,
-                border: "none",
-                borderRadius: 3,
-                cursor: "pointer",
-                opacity: !newRegName.trim() || duplicateRegName ? 0.5 : 1,
-              }}
+              style={buttonStyle({ tone: "primary", variant: "solid", disabled: !newRegName.trim() || duplicateRegName })}
             >
               + Add
             </button>
@@ -301,19 +259,16 @@ export function PalettePanel({
       {selectedCount > 1 ? (
         <div
           style={{
+            ...panelCardStyle(),
             margin: 8,
-            padding: 9,
+            padding: 10,
             background: UI_COLORS.yellow50,
             border: `1px solid ${UI_COLORS.yellow200}`,
-            borderRadius: 4,
             fontSize: 11,
           }}
         >
           <div style={{ fontWeight: 700, color: UI_COLORS.yellow800, marginBottom: 3 }}>
             {selectedCount} elements selected
-          </div>
-          <div style={{ color: UI_COLORS.yellow900, lineHeight: 1.7, marginBottom: 7 }}>
-            Drag on the canvas to marquee-select multiple items, then delete them together.
           </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             <button onClick={onDeleteSelectedSet} style={actionChipStyle(UI_COLORS.red600, UI_COLORS.rose50, UI_COLORS.red600)}>
@@ -358,14 +313,15 @@ function SelectedElementCard({
   onEditSelectedJump: (id: number) => void;
   onDeleteSelected: (id: number) => void;
 }) {
+  const editButtonStyle = actionChipStyle(UI_COLORS.amber700, UI_COLORS.yellow50, UI_COLORS.amber700);
   return (
     <div
       style={{
+        ...panelCardStyle(),
         margin: 8,
-        padding: 9,
+        padding: 10,
         background: UI_COLORS.yellow50,
         border: `1px solid ${UI_COLORS.yellow200}`,
-        borderRadius: 4,
         fontSize: 11,
       }}
     >
@@ -375,28 +331,28 @@ function SelectedElementCard({
         {element.type === "unitary" && unitaryGateSupportsParam(element.kind) ? (
           <button
             onClick={() => onEditSelectedParam(element.id, element.params ?? [])}
-            style={actionChipStyle("#d97706", UI_COLORS.yellow50, UI_COLORS.amber700)}
+            style={editButtonStyle}
           >
             Edit param(s)
           </button>
         ) : null}
         {element.type === "measurement" ? (
-          <button onClick={() => onEditSelectedCreg(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+          <button onClick={() => onEditSelectedCreg(element.id)} style={editButtonStyle}>
             Edit
           </button>
         ) : null}
         {element.type === "assign" ? (
-          <button onClick={() => onEditSelectedAssign(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+          <button onClick={() => onEditSelectedAssign(element.id)} style={editButtonStyle}>
             Edit
           </button>
         ) : null}
         {element.type === "cctrl" ? (
-          <button onClick={() => onEditSelectedCondition(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+          <button onClick={() => onEditSelectedCondition(element.id)} style={editButtonStyle}>
             Edit
           </button>
         ) : null}
         {element.type === "jump" ? (
-          <button onClick={() => onEditSelectedJump(element.id)} style={actionChipStyle(UI_COLORS.blue600, UI_COLORS.blue50, UI_COLORS.blue700)}>
+          <button onClick={() => onEditSelectedJump(element.id)} style={editButtonStyle}>
             Edit
           </button>
         ) : null}
@@ -456,8 +412,6 @@ function selectedDetails(element: CanvasElement) {
   if (element.type === "jump") {
     return (
       <>
-        col {element.step}
-        <hr style={selectionDividerStyle} />
         target: <b>{element.targetStep == null ? <span style={{ color: UI_COLORS.red600 }}>unassigned</span> : `col ${element.targetStep}`}</b>
       </>
     );
@@ -465,8 +419,6 @@ function selectedDetails(element: CanvasElement) {
 
   return (
     <>
-      qubit {element.qubit} · col {element.step}
-      <hr style={selectionDividerStyle} />
       {element.type === "unitary" && element.params && element.params.length > 0 ? (
         <>
           params = {element.params.map((value) => fmt(value)).join(", ")} rad
@@ -491,21 +443,7 @@ function selectedDetails(element: CanvasElement) {
 }
 
 function SectionTitle({ children }: { children: string }) {
-  return (
-    <div
-      style={{
-        padding: "7px 10px 3px",
-        fontSize: 10,
-        fontWeight: 700,
-        color: UI_COLORS.slate400,
-        letterSpacing: 0.8,
-        textTransform: "uppercase",
-        borderBottom: `1px solid ${UI_COLORS.appBg}`,
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div style={sectionTitleStyle()}>{children}</div>;
 }
 
 function connectorButtonStyle(borderColor: string): React.CSSProperties {
@@ -528,19 +466,12 @@ function connectorButtonStyle(borderColor: string): React.CSSProperties {
 
 function actionChipStyle(borderColor: string, background: string, color: string): React.CSSProperties {
   return {
+    ...buttonStyle({ variant: "soft" }),
     flex: 1,
-    padding: "3px 0",
+    padding: "4px 8px",
     fontSize: 10,
-    cursor: "pointer",
     border: `1px solid ${borderColor}`,
     background,
     color,
-    borderRadius: 3,
   };
 }
-
-const selectionDividerStyle: React.CSSProperties = {
-  border: "none",
-  borderTop: `1px solid ${UI_COLORS.yellow200}`,
-  margin: "6px 0",
-};

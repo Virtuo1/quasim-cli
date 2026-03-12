@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ERROR_COLORS, UI_COLORS } from "../../constants";
+import { controlStyle, panelCardStyle, subtleTextStyle } from "../../ui/styles";
 import type { ClassicalRegister, Expr } from "../../types";
 import {
   describeExpr,
@@ -15,6 +16,13 @@ import {
   validateExpression,
 } from "../../utils/conditions";
 import { ModalFrame } from "./ModalFrame";
+import {
+  modalActionsStyle,
+  modalDangerPanelStyle,
+  modalFieldLabelStyle,
+  modalPrimaryButtonStyle,
+  modalSecondaryButtonStyle,
+} from "./modalStyles";
 
 interface ExpressionEditorModalProps {
   isOpen: boolean;
@@ -216,7 +224,7 @@ export function ExpressionEditorModal({
                 <div style={panelTitleStyle}>Expression Tree</div>
                 <div style={panelSubtitleStyle}>Click nodes to edit them. Drag the background to pan.</div>
               </div>
-              <button onClick={() => setPan(INITIAL_PAN)} style={secondaryButtonStyle}>
+              <button onClick={() => setPan(INITIAL_PAN)} style={modalSecondaryButtonStyle}>
                 Reset view
               </button>
             </div>
@@ -306,14 +314,14 @@ export function ExpressionEditorModal({
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-          <button onClick={onCancel} style={secondaryButtonStyle}>
+        <div style={{ ...modalActionsStyle, marginTop: 16 }}>
+          <button onClick={onCancel} style={modalSecondaryButtonStyle}>
             Cancel
           </button>
           <button
             onClick={() => onApply(localExpr)}
             disabled={issues.length > 0 || applyDisabled}
-            style={{ ...primaryButtonStyle, opacity: issues.length > 0 || applyDisabled ? 0.5 : 1 }}
+            style={{ ...modalPrimaryButtonStyle, opacity: issues.length > 0 || applyDisabled ? 0.5 : 1 }}
           >
             Apply
           </button>
@@ -674,8 +682,8 @@ const summaryGridStyle: React.CSSProperties = {
 };
 
 const summaryCardStyle: React.CSSProperties = {
+  ...panelCardStyle(),
   background: UI_COLORS.panelBg,
-  border: `1px solid ${UI_COLORS.borderLight}`,
   padding: "10px 12px",
   minWidth: 0,
 };
@@ -692,16 +700,14 @@ const treePanelStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   minHeight: 0,
-  border: `1px solid ${UI_COLORS.borderLight}`,
-  background: UI_COLORS.white,
+  ...panelCardStyle(),
 };
 
 const inspectorPanelStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   minHeight: 0,
-  border: `1px solid ${UI_COLORS.borderLight}`,
-  background: UI_COLORS.white,
+  ...panelCardStyle(),
 };
 
 const panelHeaderStyle: React.CSSProperties = {
@@ -721,8 +727,7 @@ const panelTitleStyle: React.CSSProperties = {
 };
 
 const panelSubtitleStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: UI_COLORS.slate500,
+  ...subtleTextStyle,
   lineHeight: 1.4,
 };
 
@@ -752,12 +757,10 @@ const inspectorContentStyle: React.CSSProperties = {
 };
 
 const errorPanelStyle: React.CSSProperties = {
+  ...modalDangerPanelStyle,
   padding: "8px 10px",
   marginBottom: 12,
-  background: UI_COLORS.rose50,
-  border: `1px solid ${UI_COLORS.red100}`,
   color: ERROR_COLORS.primary,
-  fontSize: 12,
 };
 
 const eyebrowStyle: React.CSSProperties = {
@@ -776,49 +779,21 @@ const fieldBlockStyle: React.CSSProperties = {
 };
 
 const fieldLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: UI_COLORS.slate500,
-  letterSpacing: 0.2,
+  ...modalFieldLabelStyle,
 };
 
 const selectStyle: React.CSSProperties = {
+  ...controlStyle(),
   width: "100%",
-  padding: "7px 9px",
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  borderRadius: 4,
   fontFamily: "monospace",
   fontSize: 12,
-  background: UI_COLORS.white,
   boxSizing: "border-box",
 };
 
 const inputStyle: React.CSSProperties = {
+  ...controlStyle(),
   width: "100%",
-  padding: "7px 9px",
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  borderRadius: 4,
   fontFamily: "monospace",
   fontSize: 12,
   boxSizing: "border-box",
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: "6px 16px",
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  borderRadius: 4,
-  background: UI_COLORS.white,
-  cursor: "pointer",
-  fontSize: 13,
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "6px 16px",
-  border: "none",
-  borderRadius: 4,
-  background: UI_COLORS.slate900,
-  color: UI_COLORS.white,
-  cursor: "pointer",
-  fontWeight: 600,
-  fontSize: 13,
 };

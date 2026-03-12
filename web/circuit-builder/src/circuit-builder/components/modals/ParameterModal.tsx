@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 
 import { UI_COLORS, UNITARY_OP_DEFS, unitaryGateExpectedParameters } from "../../constants";
+import { buttonStyle } from "../../ui/styles";
 import type { ParameterModalState, UnitaryGateElement } from "../../types";
 import { ModalFrame } from "./ModalFrame";
+import {
+  modalActionsStyle,
+  modalFieldLabelStyle,
+  modalInputStyle,
+  modalPrimaryButtonStyle,
+  modalSecondaryButtonStyle,
+  modalSubtitleStyle,
+  modalTitleStyle,
+} from "./modalStyles";
 
 interface ParameterModalProps {
   modal: ParameterModalState | null;
@@ -36,16 +46,14 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
 
   return (
     <ModalFrame width={340}>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{def.description}</div>
-      <div style={{ fontSize: 12, color: UI_COLORS.slate500, marginBottom: 14 }}>Angle in radians</div>
+      <div style={modalTitleStyle}>{def.description}</div>
+      <div style={{ ...modalSubtitleStyle, marginBottom: 14 }}>Angle in radians</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
         {parameterLabels.map((parameterLabel, index) => {
           const localValue = localValues[index] ?? 0;
           return (
             <div key={parameterLabel}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: UI_COLORS.slate700, marginBottom: 6 }}>
-                {parameterLabel}
-              </div>
+              <div style={modalFieldLabelStyle}>{parameterLabel}</div>
               <input
                 type="number"
                 step={0.001}
@@ -60,13 +68,8 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
                   onChange(nextValues);
                 }}
                 style={{
-                  width: "100%",
-                  padding: "7px 9px",
-                  border: `1px solid ${UI_COLORS.borderMid}`,
-                  borderRadius: 4,
-                  fontFamily: "monospace",
+                  ...modalInputStyle,
                   fontSize: 13,
-                  boxSizing: "border-box",
                   marginBottom: 6,
                 }}
               />
@@ -87,12 +90,10 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
                 onChange([value]);
               }}
               style={{
+                ...buttonStyle({ variant: "soft" }),
                 padding: "3px 8px",
                 fontSize: 11,
                 fontFamily: "monospace",
-                border: `1px solid ${UI_COLORS.borderMid}`,
-                borderRadius: 3,
-                cursor: "pointer",
                 background: Math.abs((localValues[0] ?? 0) - value) < 1e-9 ? UI_COLORS.blue600 : UI_COLORS.white,
                 color: Math.abs((localValues[0] ?? 0) - value) < 1e-9 ? UI_COLORS.white : "#374151",
               }}
@@ -102,34 +103,14 @@ export function ParameterModal({ modal, element, onCancel, onChange, onApply }: 
           ))}
         </div>
       ) : null}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button onClick={onCancel} style={secondaryButtonStyle}>
+      <div style={modalActionsStyle}>
+        <button onClick={onCancel} style={modalSecondaryButtonStyle}>
           Cancel
         </button>
-        <button onClick={onApply} style={primaryButtonStyle(UI_COLORS.blue600)}>
+        <button onClick={onApply} style={modalPrimaryButtonStyle}>
           Apply
         </button>
       </div>
     </ModalFrame>
   );
 }
-
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: "6px 16px",
-  border: `1px solid ${UI_COLORS.borderMid}`,
-  borderRadius: 4,
-  background: UI_COLORS.white,
-  cursor: "pointer",
-  fontSize: 13,
-};
-
-const primaryButtonStyle = (background: string): React.CSSProperties => ({
-  padding: "6px 16px",
-  border: "none",
-  borderRadius: 4,
-  background,
-  color: UI_COLORS.white,
-  cursor: "pointer",
-  fontWeight: 600,
-  fontSize: 13,
-});

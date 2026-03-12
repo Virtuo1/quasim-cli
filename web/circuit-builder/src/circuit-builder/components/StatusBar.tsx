@@ -1,5 +1,6 @@
 import { ERROR_COLORS, CLASSICAL_OP_DEFS, UI_COLORS, UNITARY_OP_DEFS } from "../constants";
 import type { CanvasElement, DropPreview } from "../types";
+import { shellSurfaceStyle } from "../ui/styles";
 import { describeExpr } from "../utils/conditions";
 import { fmt } from "../utils/layout";
 
@@ -14,29 +15,28 @@ export function StatusBar({ selectedElement, selectedCount, dropPreview, errorSt
   return (
     <div
       style={{
-        background: UI_COLORS.slate800,
-        color: UI_COLORS.slate400,
+        ...shellSurfaceStyle,
+        color: UI_COLORS.slate500,
         padding: "5px 14px",
         fontSize: 11,
         display: "flex",
         alignItems: "center",
         gap: 16,
-        borderTop: `1px solid ${UI_COLORS.slate700}`,
+        borderBottom: "none",
+        borderTop: `1px solid ${UI_COLORS.borderLight}`,
         flexShrink: 0,
         minHeight: 26,
       }}
     >
       <span
         style={{
-          color: selectedElement
-            ? UI_COLORS.yellow400
-            : selectedCount > 1
-              ? UI_COLORS.yellow400
+          color: selectedElement || selectedCount != 0
+            ? UI_COLORS.amber700
             : dropPreview
               ? dropPreview.valid
-                ? UI_COLORS.green300
-                : ERROR_COLORS.muted
-              : UI_COLORS.slate400,
+                ? UI_COLORS.green600
+                : ERROR_COLORS.primary
+              : UI_COLORS.slate500,
         }}
       >
         {selectedElement
@@ -48,7 +48,7 @@ export function StatusBar({ selectedElement, selectedCount, dropPreview, errorSt
               : "Drag a gate or connector from the palette"}
       </span>
       {errorSteps > 0 ? (
-        <span style={{ color: ERROR_COLORS.muted }}>⚠ {errorSteps} col{errorSteps !== 1 ? "s" : ""} with errors</span>
+        <span style={{ color: ERROR_COLORS.primary }}>⚠ {errorSteps} col{errorSteps !== 1 ? "s" : ""} with errors</span>
       ) : null}
       <div style={{ flex: 1 }} />
     </div>

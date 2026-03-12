@@ -16,6 +16,7 @@ import { UI_COLORS } from "./circuit-builder/constants";
 import { useCircuitEditor } from "./circuit-builder/hooks/useCircuitEditor";
 import { runCircuit } from "./circuit-builder/utils/api";
 import { serializeCircuit } from "./circuit-builder/utils/circuit";
+import { splitHandleStyle } from "./circuit-builder/ui/styles";
 
 const MIN_PALETTE_WIDTH = 180;
 const MAX_PALETTE_WIDTH = 500;
@@ -117,8 +118,7 @@ function App() {
               top: 0,
               right: -4,
               bottom: 0,
-              width: 8,
-              cursor: "ew-resize",
+              ...splitHandleStyle(),
               background: "transparent",
               zIndex: 2,
             }}

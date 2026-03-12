@@ -98,6 +98,6 @@ export const unitaryGateSupportsParam = (kind: UnitaryGateKind) => {
   return Array.isArray(expectedParameters) && expectedParameters.length > 0;
 };
 
-export const CONNECTOR_BLACK = "#000000";
+export const CONNECTOR_BLACK = "#000";
 export const UNITARY_GATE_KINDS = Object.keys(UNITARY_OP_DEFS) as UnitaryGateKind[];
 export const CLASSICAL_OP_KINDS = Object.keys(CLASSICAL_OP_DEFS) as (keyof typeof CLASSICAL_OP_DEFS)[];
