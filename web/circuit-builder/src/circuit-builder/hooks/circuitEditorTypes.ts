@@ -11,8 +11,7 @@ import type {
   CanvasElement,
   ClassicalRegister,
   ClassicalRegisterModalState,
-  DebugClassicalRegisterValues,
-  StateVector,
+  DebuggerState,
   ConditionModalState,
   CustomGateDefinition,
   CustomGateModalState,
@@ -39,8 +38,7 @@ export interface CircuitDocumentState {
   classicalRegs: ClassicalRegister[];
   customGateDefinitions: CustomGateDefinition[];
   newRegName: string;
-  stateVector: StateVector | null;
-  debugClassicalRegisterValues: DebugClassicalRegisterValues;
+  debugger: DebuggerState;
 }
 
 export interface CircuitUiState {
@@ -56,6 +54,7 @@ export interface CircuitUiState {
   dropPreview: DropPreview | null;
   draggingId: number | null;
   selectionBox: SelectionBox | null;
+  debugViewMode: "state" | "sorted";
 }
 
 export interface CustomGateCreationState {
@@ -85,6 +84,7 @@ export interface CircuitEditorRefs {
   nSRef: RefObject<number>;
   classicalRegsRef: RefObject<ClassicalRegister[]>;
   customGateDefinitionsRef: RefObject<CustomGateDefinition[]>;
+  debuggerRef: RefObject<DebuggerState>;
 }
 
 export interface CircuitDocumentStore extends CircuitDocumentState, CircuitEditorRefs {
@@ -94,8 +94,7 @@ export interface CircuitDocumentStore extends CircuitDocumentState, CircuitEdito
   setCregs: Dispatch<SetStateAction<ClassicalRegister[]>>;
   setCustomGateDefinitions: Dispatch<SetStateAction<CustomGateDefinition[]>>;
   setNewRegName: Dispatch<SetStateAction<string>>;
-  setstateVector: Dispatch<SetStateAction<StateVector | null>>;
-  setDebugClassicalRegisterValues: Dispatch<SetStateAction<DebugClassicalRegisterValues>>;
+  setDebuggerState: Dispatch<SetStateAction<DebuggerState>>;
 }
 
 export interface CircuitUiStore extends CircuitUiState {
@@ -111,6 +110,7 @@ export interface CircuitUiStore extends CircuitUiState {
   setDropPreview: Dispatch<SetStateAction<DropPreview | null>>;
   setDraggingId: Dispatch<SetStateAction<number | null>>;
   setSelectionBox: Dispatch<SetStateAction<SelectionBox | null>>;
+  setDebugViewMode: Dispatch<SetStateAction<"state" | "sorted">>;
 }
 
 export interface CircuitEditorStores {
@@ -129,8 +129,7 @@ export interface CircuitEditorActions {
   setHoveredJumpTargetStep: Dispatch<SetStateAction<number | null>>;
   setCustomGateModal: Dispatch<SetStateAction<CustomGateModalState | null>>;
   setNewRegName: Dispatch<SetStateAction<string>>;
-  setstateVector: Dispatch<SetStateAction<StateVector | null>>;
-  setDebugClassicalRegisterValues: Dispatch<SetStateAction<DebugClassicalRegisterValues>>;
+  setDebugViewMode: Dispatch<SetStateAction<"state" | "sorted">>;
   handleKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   startCanvasSelection: (event: ReactPointerEvent<SVGSVGElement>) => void;
   startPaletteDrag: (event: ReactPointerEvent, spec: PaletteDragSpec) => void;
@@ -153,6 +152,12 @@ export interface CircuitEditorActions {
   createCustomGate: (name: string) => void;
   deleteSelected: (id: number) => void;
   deleteSelectedSet: () => void;
+  buildDebugSession: () => Promise<void>;
+  stepDebugSession: () => Promise<void>;
+  continueDebugSession: () => Promise<void>;
+  refreshDebugSession: () => Promise<void>;
+  changeDebugViewMode: (mode: "state" | "sorted") => void;
+  loadTrackedBasisAmplitude: (basis: number) => Promise<void>;
 }
 
 export interface UseCircuitEditorResult {

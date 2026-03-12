@@ -6,7 +6,13 @@ interface AppHeaderProps {
   nQ: number;
   nS: number;
   classicalRegisterCount: number;
-  onRun: () => void;
+  debuggerSessionActive: boolean;
+  debuggerBusy: boolean;
+  debuggerPc: number | null;
+  debuggerError: string | null;
+  onBuild: () => void;
+  onNext: () => void;
+  onContinue: () => void;
   onAddQubit: () => void;
   onRemoveQubit: () => void;
   onImport: () => void;
@@ -18,7 +24,13 @@ export function AppHeader({
   nQ,
   nS,
   classicalRegisterCount,
-  onRun,
+  debuggerSessionActive,
+  debuggerBusy,
+  debuggerPc,
+  debuggerError,
+  onBuild,
+  onNext,
+  onContinue,
   onAddQubit,
   onRemoveQubit,
   onImport,
@@ -50,11 +62,27 @@ export function AppHeader({
       <HeaderButton onClick={onExport} accent>
         Export JSON
       </HeaderButton>
-      <HeaderButton onClick={onRun}>Run</HeaderButton>
+      <HeaderButton onClick={onBuild} disabled={debuggerBusy}>Build</HeaderButton>
+      {debuggerSessionActive ? (
+        <>
+          <HeaderButton onClick={onNext} disabled={debuggerBusy}>Next</HeaderButton>
+          <HeaderButton onClick={onContinue} disabled={debuggerBusy}>Continue</HeaderButton>
+        </>
+      ) : null}
       <HeaderButton onClick={onClear} danger>
         Clear
       </HeaderButton>
       <div style={{ flex: 1 }} />
+      {debuggerSessionActive ? (
+        <span style={{ fontSize: 11, color: UI_COLORS.slate500 }}>
+          PC {debuggerPc ?? "?"}
+        </span>
+      ) : null}
+      {debuggerError ? (
+        <span style={{ fontSize: 11, color: UI_COLORS.red600, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {debuggerError}
+        </span>
+      ) : null}
       <span style={{ fontSize: 11, color: UI_COLORS.slate500 }}>
         {nQ} qubits · {classicalRegisterCount} creg{classicalRegisterCount !== 1 ? "s" : ""} · {nS} cols
       </span>

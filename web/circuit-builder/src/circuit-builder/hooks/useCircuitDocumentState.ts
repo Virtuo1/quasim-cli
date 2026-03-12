@@ -5,13 +5,10 @@ import type {
   CanvasElement,
   ClassicalRegister,
   CustomGateDefinition,
-  DebugClassicalRegisterValues,
-  StateVector,
+  DebuggerState,
 } from "../types";
 import { compact } from "../utils/circuit";
 import type { CircuitDocumentStore, ElementUpdater } from "./circuitEditorTypes";
-
-const USE_MOCK_DEBUG_STATE_VECTOR = true;
 
 export function useCircuitDocumentState(): CircuitDocumentStore {
   const [nQ, setNQ] = useState(4);
@@ -20,21 +17,24 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
   const [classicalRegs, setCregs] = useState<ClassicalRegister[]>([]);
   const [customGateDefinitions, setCustomGateDefinitions] = useState<CustomGateDefinition[]>([]);
   const [newRegName, setNewRegName] = useState("");
-  const [stateVector, setstateVector] = useState<StateVector | null>(null);
-  const [debugClassicalRegisterValues, setDebugClassicalRegisterValues] = useState<DebugClassicalRegisterValues>({});
+  const [debuggerState, setDebuggerState] = useState<DebuggerState>(createIdleDebuggerState());
 
   const elementsRef = useSyncedRef(elements);
   const nQRef = useSyncedRef(nQ);
   const nSRef = useSyncedRef(nS);
   const classicalRegsRef = useSyncedRef(classicalRegs);
   const customGateDefinitionsRef = useSyncedRef(customGateDefinitions);
+  const debuggerRef = useSyncedRef(debuggerState);
+  const hasMountedRef = useRef(false);
 
   useEffect(() => {
-    if (USE_MOCK_DEBUG_STATE_VECTOR) {
-      setstateVector(createMockstateVector(nQ));
-      setDebugClassicalRegisterValues(createMockDebugClassicalRegisterValues(classicalRegs, nQ));
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
     }
-  }, [classicalRegs, nQ]);
+
+    setDebuggerState((current) => (current.sessionId ? createIdleDebuggerState() : current));
+  }, [classicalRegs, customGateDefinitions, elements, nQ]);
 
   const setElements = useCallback((updater: ElementUpdater) => {
     setRawElements((prev) => {
@@ -52,21 +52,20 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
     classicalRegs,
     customGateDefinitions,
     newRegName,
-    stateVector,
-    debugClassicalRegisterValues,
+    debugger: debuggerState,
     elementsRef,
     nQRef,
     nSRef,
     classicalRegsRef,
     customGateDefinitionsRef,
+    debuggerRef,
     setNQ,
     setNS,
     setElements,
     setCregs,
     setCustomGateDefinitions,
     setNewRegName,
-    setstateVector,
-    setDebugClassicalRegisterValues,
+    setDebuggerState,
   };
 }
 
@@ -80,34 +79,14 @@ function useSyncedRef<T>(value: T) {
   return ref;
 }
 
-function createMockstateVector(qubitCount: number): StateVector {
-  const amplitudeCount = 2 ** qubitCount;
-  const amplitudes = Array.from({ length: amplitudeCount }, (_, index) => {
-    const envelope = 0.18 + 0.82 * Math.abs(Math.sin(index * 0.17) * Math.cos(index * 0.043));
-    const phase = index * 0.31;
-    return {
-      re: Math.cos(phase) * envelope,
-      im: Math.sin(phase) * envelope * 0.7,
-    };
-  });
-
-  const norm = Math.sqrt(
-    amplitudes.reduce((sum, amplitude) => sum + amplitude.re * amplitude.re + amplitude.im * amplitude.im, 0),
-  );
-
+function createIdleDebuggerState(): DebuggerState {
   return {
-    amplitudes: amplitudes.map((amplitude) => ({
-      re: amplitude.re / norm,
-      im: amplitude.im / norm,
-    })),
+    sessionId: null,
+    mode: "idle",
+    pc: null,
+    stateVector: null,
+    debugClassicalRegisterValues: {},
+    basisAmplitudeCache: {},
+    error: null,
   };
-}
-
-function createMockDebugClassicalRegisterValues(
-  classicalRegs: ClassicalRegister[],
-  qubitCount: number,
-): DebugClassicalRegisterValues {
-  return Object.fromEntries(
-    classicalRegs.map((register, index) => [register.name, { Int: ((index + 1) * 3 + qubitCount) % 16 }]),
-  );
 }

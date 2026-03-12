@@ -1,15 +1,16 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { normalizeSelectionBox, selectionHitsElement } from "../components/canvas/selection";
 import type {
   CanvasElement,
   ClassicalControlElement,
+  DebuggerState,
   DropPreview,
   PaletteDragSpec,
   SerializedCircuit,
 } from "../types";
 import { createDefaultConditionExpression, exprRegisters, rebindConditionAnchor } from "../utils/conditions";
-import { cellTaken, deserializeCircuit, exportCircuitToFile } from "../utils/circuit";
+import { cellTaken, deserializeCircuit, exportCircuitToFile, serializeCircuit } from "../utils/circuit";
 import {
   buildCustomGateDefinition,
   canCreateCustomGate,
@@ -25,12 +26,48 @@ import {
   createElementFromPalette,
 } from "./editorHelpers";
 import type { CircuitEditorActions, CircuitEditorStores, UseCircuitEditorArgs } from "./circuitEditorTypes";
+import {
+  buildDebugSession as buildDebugSessionRequest,
+  continueDebugSession as continueDebugSessionRequest,
+  fetchDebugSessionBasisAmplitude,
+  fetchDebugSessionRegisters,
+  fetchDebugSessionState,
+  fetchDebugSessionStateVector,
+  nextDebugSession as nextDebugSessionRequest,
+} from "../utils/api";
 
 export function useCircuitEditorCommands(
   { svgRef }: UseCircuitEditorArgs,
   stores: CircuitEditorStores,
 ): CircuitEditorActions {
   const { document: doc, ui } = stores;
+  const basisAmplitudeRequestsRef = useRef(new Set<number>());
+
+  const createIdleDebuggerState = useCallback(
+    (): DebuggerState => ({
+      sessionId: null,
+      mode: "idle",
+      pc: null,
+      stateVector: null,
+      debugClassicalRegisterValues: {},
+      basisAmplitudeCache: {},
+      error: null,
+    }),
+    [],
+  );
+
+  const setDebuggerMode = useCallback((mode: DebuggerState["mode"]) => {
+    doc.setDebuggerState((current) => ({ ...current, mode }));
+  }, [doc]);
+
+  const setDebuggerError = useCallback((error: string | null, mode: DebuggerState["mode"] = "error") => {
+    doc.setDebuggerState((current) => ({ ...current, error, mode }));
+  }, [doc]);
+
+  const resetDebuggerSession = useCallback(() => {
+    basisAmplitudeRequestsRef.current.clear();
+    doc.setDebuggerState(createIdleDebuggerState());
+  }, [createIdleDebuggerState, doc]);
 
   const resetUiState = useCallback(() => {
     ui.setSelectedIds([]);
@@ -82,6 +119,186 @@ export function useCircuitEditorCommands(
     ui.setJumpModal({ elId });
     ui.setHoveredJumpTargetStep(suggestedStep ?? null);
   }, [ui]);
+
+  const fetchStateVectorForMode = useCallback(
+    async (sessionId: string, mode: "state" | "sorted") => {
+      if (mode === "sorted") {
+        return fetchDebugSessionStateVector(sessionId, { topN: 32 });
+      }
+
+      return fetchDebugSessionStateVector(sessionId, { nonzero: false });
+    },
+    [],
+  );
+
+  const refreshDebugSessionBySessionId = useCallback(async (sessionId: string) => {
+    try {
+      const [stateResponse, registersResponse, stateVectorResponse] = await Promise.all([
+        fetchDebugSessionState(sessionId),
+        fetchDebugSessionRegisters(sessionId),
+        fetchStateVectorForMode(sessionId, ui.debugViewMode),
+      ]);
+
+      doc.setDebuggerState((current) => {
+        const nextBasisAmplitudeCache = { ...current.basisAmplitudeCache };
+        for (const entry of stateVectorResponse.amplitudes) {
+          nextBasisAmplitudeCache[entry.basis] = entry.amplitude;
+        }
+
+        return {
+          ...current,
+          sessionId,
+          mode: "ready",
+          pc: stateResponse.pc,
+          stateVector: stateVectorResponse,
+          debugClassicalRegisterValues: registersResponse.registers,
+          basisAmplitudeCache: nextBasisAmplitudeCache,
+          error: null,
+        };
+      });
+    } catch (error) {
+      setDebuggerError(error instanceof Error ? error.message : "Failed to refresh debugger session.");
+    }
+  }, [doc, fetchStateVectorForMode, setDebuggerError, ui.debugViewMode]);
+
+  const refreshDebugSession = useCallback(async () => {
+    const sessionId = doc.debuggerRef.current.sessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    await refreshDebugSessionBySessionId(sessionId);
+  }, [doc.debuggerRef, refreshDebugSessionBySessionId]);
+
+  const buildDebugSession = useCallback(async () => {
+    setDebuggerMode("building");
+    basisAmplitudeRequestsRef.current.clear();
+
+    try {
+      const response = await buildDebugSessionRequest(
+        serializeCircuit({
+          qubits: doc.nQRef.current,
+          steps: doc.nSRef.current,
+          classicalRegisters: doc.classicalRegsRef.current,
+          elements: doc.elementsRef.current,
+          customGateDefinitions: doc.customGateDefinitionsRef.current,
+        }),
+      );
+
+      doc.setDebuggerState((current) => ({
+        ...current,
+        sessionId: response.session_id,
+        mode: "building",
+        pc: null,
+        stateVector: null,
+        debugClassicalRegisterValues: {},
+        basisAmplitudeCache: {},
+        error: null,
+      }));
+
+      await refreshDebugSessionBySessionId(response.session_id);
+    } catch (error) {
+      basisAmplitudeRequestsRef.current.clear();
+      doc.setDebuggerState({
+        ...createIdleDebuggerState(),
+        mode: "error",
+        error: error instanceof Error ? error.message : "Failed to build debugger session.",
+      });
+    }
+  }, [createIdleDebuggerState, doc, refreshDebugSessionBySessionId, setDebuggerMode]);
+
+  const stepDebugSession = useCallback(async () => {
+    const sessionId = doc.debuggerRef.current.sessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    setDebuggerMode("stepping");
+
+    try {
+      await nextDebugSessionRequest(sessionId);
+      await refreshDebugSession();
+    } catch (error) {
+      setDebuggerError(error instanceof Error ? error.message : "Failed to step debugger session.");
+    }
+  }, [doc.debuggerRef, refreshDebugSession, setDebuggerError, setDebuggerMode]);
+
+  const continueDebugSession = useCallback(async () => {
+    const sessionId = doc.debuggerRef.current.sessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    setDebuggerMode("continuing");
+
+    try {
+      await continueDebugSessionRequest(sessionId);
+      await refreshDebugSession();
+    } catch (error) {
+      setDebuggerError(error instanceof Error ? error.message : "Failed to continue debugger session.");
+    }
+  }, [doc.debuggerRef, refreshDebugSession, setDebuggerError, setDebuggerMode]);
+
+  const changeDebugViewMode = useCallback(
+    (mode: "state" | "sorted") => {
+      ui.setDebugViewMode(mode);
+
+      const sessionId = doc.debuggerRef.current.sessionId;
+      if (!sessionId) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          const stateVectorResponse = await fetchStateVectorForMode(sessionId, mode);
+          doc.setDebuggerState((current) => {
+            const nextBasisAmplitudeCache = { ...current.basisAmplitudeCache };
+            for (const entry of stateVectorResponse.amplitudes) {
+              nextBasisAmplitudeCache[entry.basis] = entry.amplitude;
+            }
+
+            return {
+              ...current,
+              stateVector: stateVectorResponse,
+              basisAmplitudeCache: nextBasisAmplitudeCache,
+              error: null,
+            };
+          });
+        } catch (error) {
+          setDebuggerError(error instanceof Error ? error.message : "Failed to refresh statevector view.");
+        }
+      })();
+    },
+    [doc, fetchStateVectorForMode, setDebuggerError, ui],
+  );
+
+  const loadTrackedBasisAmplitude = useCallback(async (basis: number) => {
+    const sessionId = doc.debuggerRef.current.sessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    if (basis in doc.debuggerRef.current.basisAmplitudeCache || basisAmplitudeRequestsRef.current.has(basis)) {
+      return;
+    }
+
+    basisAmplitudeRequestsRef.current.add(basis);
+
+    try {
+      const response = await fetchDebugSessionBasisAmplitude(sessionId, basis);
+      doc.setDebuggerState((current) => ({
+        ...current,
+        basisAmplitudeCache: {
+          ...current.basisAmplitudeCache,
+          [basis]: response.amplitude,
+        },
+      }));
+    } catch (error) {
+      setDebuggerError(error instanceof Error ? error.message : `Failed to load basis amplitude ${basis}.`);
+    } finally {
+      basisAmplitudeRequestsRef.current.delete(basis);
+    }
+  }, [doc, setDebuggerError]);
 
   const getPlacementQubits = useCallback(
     (spec: PaletteDragSpec | CanvasElement, baseQubit: number) => {
@@ -591,6 +808,7 @@ export function useCircuitEditorCommands(
           doc.setCustomGateDefinitions(next.customGateDefinitions);
           doc.setElements(next.elements);
           doc.setNewRegName("");
+          resetDebuggerSession();
           resetUiState();
         } catch {
           window.alert("Invalid circuit JSON.");
@@ -606,8 +824,9 @@ export function useCircuitEditorCommands(
     doc.setCregs([]);
     doc.setCustomGateDefinitions([]);
     doc.setNewRegName("");
+    resetDebuggerSession();
     resetUiState();
-  }, [doc, resetUiState]);
+  }, [doc, resetDebuggerSession, resetUiState]);
 
   const assignMeasurementRegister = useCallback(
     (registerName: string, bitIndex: number) => {
@@ -788,8 +1007,7 @@ export function useCircuitEditorCommands(
     setHoveredJumpTargetStep: ui.setHoveredJumpTargetStep,
     setCustomGateModal: ui.setCustomGateModal,
     setNewRegName: doc.setNewRegName,
-    setstateVector: doc.setstateVector,
-    setDebugClassicalRegisterValues: doc.setDebugClassicalRegisterValues,
+    setDebugViewMode: ui.setDebugViewMode,
     handleKeyDown,
     startCanvasSelection,
     startPaletteDrag,
@@ -812,5 +1030,11 @@ export function useCircuitEditorCommands(
     createCustomGate,
     deleteSelected,
     deleteSelectedSet,
+    buildDebugSession,
+    stepDebugSession,
+    continueDebugSession,
+    refreshDebugSession,
+    changeDebugViewMode,
+    loadTrackedBasisAmplitude,
   };
 }

@@ -26,6 +26,7 @@ export function useCircuitUiState({ contRef }: UseCircuitEditorArgs): CircuitUiS
   const [dropPreview, setDropPreview] = useState<DropPreview | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
+  const [debugViewMode, setDebugViewMode] = useState<"state" | "sorted">("state");
 
   useEffect(() => {
     contRef.current?.focus();
@@ -44,6 +45,7 @@ export function useCircuitUiState({ contRef }: UseCircuitEditorArgs): CircuitUiS
     dropPreview,
     draggingId,
     selectionBox,
+    debugViewMode,
     setSelectedIds,
     setParameterModal,
     setClassicalRegisterModal,
@@ -56,5 +58,6 @@ export function useCircuitUiState({ contRef }: UseCircuitEditorArgs): CircuitUiS
     setDropPreview,
     setDraggingId,
     setSelectionBox,
+    setDebugViewMode,
   };
 }

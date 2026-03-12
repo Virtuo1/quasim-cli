@@ -242,13 +242,49 @@ export interface ComplexAmplitude {
   im: number;
 }
 
-export interface StateVector {
-  amplitudes: ComplexAmplitude[];
+export interface IndexedAmplitude {
+  basis: number;
+  amplitude: ComplexAmplitude;
+}
+
+export interface StateResponse {
+  pc: number;
+  state: unknown;
+}
+
+export interface StateVectorResponse {
+  amplitudes: IndexedAmplitude[];
+  total_amplitudes: number;
+  filtered: boolean;
+}
+
+export interface BasisResponse {
+  amplitude: ComplexAmplitude;
+}
+
+export interface RegistersResponse {
+  registers: Record<string, ExprValue>;
+}
+
+export interface BuildResponse {
+  session_id: string;
 }
 
 export type DebugClassicalRegisterValue = ExprValue;
 
 export type DebugClassicalRegisterValues = Record<string, DebugClassicalRegisterValue>;
+
+export type DebuggerMode = "idle" | "building" | "ready" | "stepping" | "continuing" | "error";
+
+export interface DebuggerState {
+  sessionId: string | null;
+  mode: DebuggerMode;
+  pc: number | null;
+  stateVector: StateVectorResponse | null;
+  debugClassicalRegisterValues: DebugClassicalRegisterValues;
+  basisAmplitudeCache: Record<number, ComplexAmplitude>;
+  error: string | null;
+}
 
 /**
  * Gate definition types

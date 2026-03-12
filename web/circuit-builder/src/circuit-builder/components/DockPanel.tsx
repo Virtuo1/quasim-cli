@@ -2,7 +2,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useRef, useState } from "react";
 
 import { UI_COLORS } from "../constants";
-import type { ClassicalRegister, DebugClassicalRegisterValues, StateVector } from "../types";
+import type { ClassicalRegister, DebuggerState, StateVectorResponse } from "../types";
 import { controlStyle, splitHandleStyle, subtleTextStyle } from "../ui/styles";
 import { DebugValueTrackerPanel } from "./DebugValueTrackerPanel";
 import { StateVectorPlot, type StateVectorPlotDatum } from "./StateVectorPlot";
@@ -10,8 +10,10 @@ import { StateVectorPlot, type StateVectorPlotDatum } from "./StateVectorPlot";
 interface DockPanelProps {
   nQ: number;
   classicalRegs: ClassicalRegister[];
-  stateVector: StateVector | null;
-  debugClassicalRegisterValues: DebugClassicalRegisterValues;
+  debugger: DebuggerState;
+  viewMode: "state" | "sorted";
+  onViewModeChange: (mode: "state" | "sorted") => void;
+  onLoadTrackedBasisAmplitude: (basis: number) => void;
 }
 
 const MIN_DOCK_HEIGHT = 50;
@@ -19,7 +21,14 @@ const MAX_DOCK_HEIGHT = 600;
 const MIN_LEFT_PANE_WIDTH = 280;
 const MIN_RIGHT_PANE_WIDTH = 400;
 
-export function DockPanel({ nQ, classicalRegs, stateVector, debugClassicalRegisterValues }: DockPanelProps) {
+export function DockPanel({
+  nQ,
+  classicalRegs,
+  debugger: debuggerState,
+  viewMode,
+  onViewModeChange,
+  onLoadTrackedBasisAmplitude,
+}: DockPanelProps) {
   const dockRef = useRef<HTMLDivElement | null>(null);
   const [dockHeight, setDockHeight] = useState(240);
   const [leftPaneWidth, setLeftPaneWidth] = useState(520);
@@ -100,7 +109,12 @@ export function DockPanel({ nQ, classicalRegs, stateVector, debugClassicalRegist
             padding: "10px 12px",
           }}
         >
-          <StateVectorPanel stateVector={stateVector} qubitCount={nQ} />
+          <StateVectorPanel
+            stateVector={debuggerState.stateVector}
+            qubitCount={nQ}
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
         </div>
 
         <div
@@ -115,8 +129,11 @@ export function DockPanel({ nQ, classicalRegs, stateVector, debugClassicalRegist
           <DebugValueTrackerPanel
             nQ={nQ}
             classicalRegs={classicalRegs}
-            debugClassicalRegisterValues={debugClassicalRegisterValues}
-            stateVector={stateVector}
+            sessionId={debuggerState.sessionId}
+            debugClassicalRegisterValues={debuggerState.debugClassicalRegisterValues}
+            stateVector={debuggerState.stateVector}
+            trackedBasisAmplitudes={debuggerState.basisAmplitudeCache}
+            onLoadBasisAmplitude={onLoadTrackedBasisAmplitude}
           />
         </div>
       </div>
@@ -127,11 +144,14 @@ export function DockPanel({ nQ, classicalRegs, stateVector, debugClassicalRegist
 function StateVectorPanel({
   stateVector,
   qubitCount,
+  viewMode,
+  onViewModeChange,
 }: {
-  stateVector: StateVector | null;
+  stateVector: StateVectorResponse | null;
   qubitCount: number;
+  viewMode: "state" | "sorted";
+  onViewModeChange: (mode: "state" | "sorted") => void;
 }) {
-  const [viewMode, setViewMode] = useState<"state" | "sorted">("state");
   const amplitudes = stateVector?.amplitudes ?? [];
   const stateVectorHidden = viewMode === "state" && qubitCount > 8;
 
@@ -151,7 +171,7 @@ function StateVectorPanel({
       <div style={controlRowStyle}>
         <select
           value={viewMode}
-          onChange={(event) => setViewMode(event.target.value === "sorted" ? "sorted" : "state")}
+          onChange={(event) => onViewModeChange(event.target.value === "sorted" ? "sorted" : "state")}
           style={selectStyle}
         >
           <option value="state">Statevector diagram</option>
@@ -195,22 +215,26 @@ const selectHintStyle = {
 } satisfies CSSProperties;
 
 function buildPlotData(
-  amplitudes: StateVector["amplitudes"],
+  amplitudes: StateVectorResponse["amplitudes"],
   qubitCount: number,
   viewMode: "state" | "sorted",
 ): StateVectorPlotDatum[] {
-  const bars = amplitudes.map((amplitude, index) => ({
-    index,
-    label: `|${index.toString(2).padStart(qubitCount, "0")}>`,
-    probability: magnitudeSquared(amplitude.re, amplitude.im),
-    phase: Math.atan2(amplitude.im, amplitude.re),
-    real: amplitude.re,
-    imag: amplitude.im,
-  }));
+  const sortedAmplitudes =
+    viewMode === "sorted"
+      ? [...amplitudes].sort(
+          (left, right) =>
+            magnitudeSquared(right.amplitude.re, right.amplitude.im) - magnitudeSquared(left.amplitude.re, left.amplitude.im),
+        )
+      : [...amplitudes].sort((left, right) => left.basis - right.basis);
 
-  return viewMode === "sorted"
-    ? [...bars].sort((a, b) => b.probability - a.probability).slice(0, 32)
-    : bars;
+  return sortedAmplitudes.map((entry, index) => ({
+    index,
+    label: `|${entry.basis.toString(2).padStart(qubitCount, "0")}>`,
+    probability: magnitudeSquared(entry.amplitude.re, entry.amplitude.im),
+    phase: Math.atan2(entry.amplitude.im, entry.amplitude.re),
+    real: entry.amplitude.re,
+    imag: entry.amplitude.im,
+  }));
 }
 
 function magnitudeSquared(real: number, imag: number) {

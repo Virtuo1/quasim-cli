@@ -17,7 +17,7 @@ POST /api/debug/build
 
 #[derive(Debug, Serialize)]
 struct BuildResponse {
-    id: Uuid,
+    session_id: Uuid,
 }
 
 pub fn debug_router<T: BackendDebugger>(state: SharedState<T>) -> Router {
@@ -41,5 +41,5 @@ async fn debug_build<T: BackendDebugger>(
         .sessions
         .insert(session_uuid, DebugSession::from(debugger));
 
-    Ok(Json(BuildResponse { id: session_uuid }))
+    Ok(Json(BuildResponse { session_id: session_uuid }))
 }

@@ -4,17 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { UI_COLORS } from "../constants";
 import type {
   ClassicalRegister,
+  ComplexAmplitude,
   DebugClassicalRegisterValue,
   DebugClassicalRegisterValues,
-  StateVector,
+  StateVectorResponse,
 } from "../types";
 import { buttonStyle, controlStyle, subtleTextStyle } from "../ui/styles";
 
 interface DebugValueTrackerPanelProps {
   nQ: number;
+  sessionId: string | null;
   classicalRegs: ClassicalRegister[];
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
-  stateVector: StateVector | null;
+  stateVector: StateVectorResponse | null;
+  trackedBasisAmplitudes: Record<number, ComplexAmplitude>;
+  onLoadBasisAmplitude: (basis: number) => void;
 }
 
 type TrackerEntry =
@@ -25,9 +29,12 @@ type TrackerDraftKind = TrackerEntry["kind"];
 
 export function DebugValueTrackerPanel({
   nQ,
+  sessionId,
   classicalRegs,
   debugClassicalRegisterValues,
   stateVector,
+  trackedBasisAmplitudes,
+  onLoadBasisAmplitude,
 }: DebugValueTrackerPanelProps) {
   const nextEntryIdRef = useRef(1);
   const [draftKind, setDraftKind] = useState<TrackerDraftKind>("creg");
@@ -46,7 +53,7 @@ export function DebugValueTrackerPanel({
     }
   }, [classicalRegs, draftRegisterName]);
 
-  const amplitudeCount = stateVector?.amplitudes.length ?? 2 ** nQ;
+  const amplitudeCount = stateVector?.total_amplitudes ?? 2 ** nQ;
   const basisInputError = useMemo(
     () => validateBasisInput(draftBasisInput, amplitudeCount),
     [amplitudeCount, draftBasisInput],
@@ -146,8 +153,11 @@ export function DebugValueTrackerPanel({
               key={entry.id}
               entry={entry}
               nQ={nQ}
+              sessionId={sessionId}
               stateVector={stateVector}
+              trackedBasisAmplitudes={trackedBasisAmplitudes}
               debugClassicalRegisterValues={debugClassicalRegisterValues}
+              onLoadBasisAmplitude={onLoadBasisAmplitude}
               onRemove={() => removeEntry(entry.id)}
             />
           ))
@@ -160,14 +170,20 @@ export function DebugValueTrackerPanel({
 function TrackedValueRow({
   entry,
   nQ,
+  sessionId,
   stateVector,
+  trackedBasisAmplitudes,
   debugClassicalRegisterValues,
+  onLoadBasisAmplitude,
   onRemove,
 }: {
   entry: TrackerEntry;
   nQ: number;
-  stateVector: StateVector | null;
+  sessionId: string | null;
+  stateVector: StateVectorResponse | null;
+  trackedBasisAmplitudes: Record<number, ComplexAmplitude>;
   debugClassicalRegisterValues: DebugClassicalRegisterValues;
+  onLoadBasisAmplitude: (basis: number) => void;
   onRemove: () => void;
 }) {
   if (entry.kind === "creg") {
@@ -196,12 +212,53 @@ function TrackedValueRow({
     );
   }
 
-  const amplitude = stateVector?.amplitudes[entry.basisIndex] ?? null;
+  return (
+    <BasisTrackedValueRow
+      basisIndex={entry.basisIndex}
+      nQ={nQ}
+      sessionId={sessionId}
+      stateVector={stateVector}
+      trackedBasisAmplitudes={trackedBasisAmplitudes}
+      onLoadBasisAmplitude={onLoadBasisAmplitude}
+      onRemove={onRemove}
+    />
+  );
+}
+
+function BasisTrackedValueRow({
+  basisIndex,
+  nQ,
+  sessionId,
+  stateVector,
+  trackedBasisAmplitudes,
+  onLoadBasisAmplitude,
+  onRemove,
+}: {
+  basisIndex: number;
+  nQ: number;
+  sessionId: string | null;
+  stateVector: StateVectorResponse | null;
+  trackedBasisAmplitudes: Record<number, ComplexAmplitude>;
+  onLoadBasisAmplitude: (basis: number) => void;
+  onRemove: () => void;
+}) {
+  const amplitude =
+    stateVector?.amplitudes.find((candidate) => candidate.basis === basisIndex)?.amplitude ??
+    trackedBasisAmplitudes[basisIndex] ??
+    null;
+
+  useEffect(() => {
+    if (!sessionId || amplitude) {
+      return;
+    }
+
+    onLoadBasisAmplitude(basisIndex);
+  }, [amplitude, basisIndex, onLoadBasisAmplitude, sessionId]);
 
   return (
     <div style={rowStyle}>
       <div style={nameCellStyle}>
-        <div style={labelStyle}>{formatBasisLabel(entry.basisIndex, nQ)}</div>
+        <div style={labelStyle}>{formatBasisLabel(basisIndex, nQ)}</div>
         <div style={kindBadgeStyle}>amp</div>
       </div>
       <div style={valueCellStyle}>
