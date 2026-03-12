@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import { MAX_FULL_STATEVECTOR_QUBITS, SORTED_STATEVECTOR_TOP_N } from "../constants";
 import { normalizeSelectionBox, selectionHitsElement } from "../components/canvas/selection";
 import type {
   CanvasElement,
@@ -154,15 +155,21 @@ export function useCircuitEditorCommands(
     ui.setHoveredJumpTargetStep(suggestedStep ?? null);
   }, [ui]);
 
+  const resolveStateVectorMode = useCallback(
+    (mode: "state" | "sorted", qubitCount: number) =>
+      mode === "state" && qubitCount > MAX_FULL_STATEVECTOR_QUBITS ? "sorted" : mode,
+    [],
+  );
+
   const fetchStateVectorForMode = useCallback(
-    async (sessionId: string, mode: "state" | "sorted") => {
-      if (mode === "sorted") {
-        return fetchDebugSessionStateVector(sessionId, { topN: 32 });
+    async (sessionId: string, mode: "state" | "sorted", qubitCount: number) => {
+      if (resolveStateVectorMode(mode, qubitCount) === "sorted") {
+        return fetchDebugSessionStateVector(sessionId, { topN: SORTED_STATEVECTOR_TOP_N });
       }
 
       return fetchDebugSessionStateVector(sessionId, { nonzero: false });
     },
-    [],
+    [resolveStateVectorMode],
   );
 
   const refreshDebugSessionBySessionId = useCallback(async (sessionId: string) => {
@@ -170,15 +177,10 @@ export function useCircuitEditorCommands(
       const [stateResponse, registersResponse, stateVectorResponse] = await Promise.all([
         fetchDebugSessionState(sessionId),
         fetchDebugSessionRegisters(sessionId),
-        fetchStateVectorForMode(sessionId, ui.debugViewMode),
+        fetchStateVectorForMode(sessionId, ui.debugViewMode, doc.nQRef.current),
       ]);
 
       doc.setDebuggerState((current) => {
-        const nextBasisAmplitudeCache = { ...current.basisAmplitudeCache };
-        for (const entry of stateVectorResponse.amplitudes) {
-          nextBasisAmplitudeCache[entry.basis] = entry.amplitude;
-        }
-
         return {
           ...current,
           sessionId,
@@ -186,7 +188,6 @@ export function useCircuitEditorCommands(
           pc: stateResponse.pc,
           stateVector: stateVectorResponse,
           debugClassicalRegisterValues: registersResponse.registers,
-          basisAmplitudeCache: nextBasisAmplitudeCache,
           error: null,
         };
       });
@@ -194,6 +195,14 @@ export function useCircuitEditorCommands(
       setDebuggerError(error instanceof Error ? error.message : "Failed to refresh debugger session.");
     }
   }, [doc, fetchStateVectorForMode, setDebuggerError, ui.debugViewMode]);
+
+  useEffect(() => {
+    if (doc.nQ <= MAX_FULL_STATEVECTOR_QUBITS || ui.debugViewMode !== "state") {
+      return;
+    }
+
+    ui.setDebugViewMode("sorted");
+  }, [doc.nQ, ui]);
 
   const refreshDebugSession = useCallback(async () => {
     const sessionId = doc.debuggerRef.current.sessionId;
@@ -318,7 +327,8 @@ export function useCircuitEditorCommands(
 
   const changeDebugViewMode = useCallback(
     (mode: "state" | "sorted") => {
-      ui.setDebugViewMode(mode);
+      const nextMode = resolveStateVectorMode(mode, doc.nQRef.current);
+      ui.setDebugViewMode(nextMode);
 
       const sessionId = doc.debuggerRef.current.sessionId;
       if (!sessionId) {
@@ -327,26 +337,18 @@ export function useCircuitEditorCommands(
 
       void (async () => {
         try {
-          const stateVectorResponse = await fetchStateVectorForMode(sessionId, mode);
-          doc.setDebuggerState((current) => {
-            const nextBasisAmplitudeCache = { ...current.basisAmplitudeCache };
-            for (const entry of stateVectorResponse.amplitudes) {
-              nextBasisAmplitudeCache[entry.basis] = entry.amplitude;
-            }
-
-            return {
-              ...current,
-              stateVector: stateVectorResponse,
-              basisAmplitudeCache: nextBasisAmplitudeCache,
-              error: null,
-            };
-          });
+          const stateVectorResponse = await fetchStateVectorForMode(sessionId, nextMode, doc.nQRef.current);
+          doc.setDebuggerState((current) => ({
+            ...current,
+            stateVector: stateVectorResponse,
+            error: null,
+          }));
         } catch (error) {
           setDebuggerError(error instanceof Error ? error.message : "Failed to refresh statevector view.");
         }
       })();
     },
-    [doc, fetchStateVectorForMode, setDebuggerError, ui],
+    [doc, fetchStateVectorForMode, resolveStateVectorMode, setDebuggerError, ui],
   );
 
   const loadTrackedBasisAmplitude = useCallback(async (basis: number) => {

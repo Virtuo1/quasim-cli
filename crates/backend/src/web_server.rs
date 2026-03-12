@@ -3,12 +3,24 @@ use std::{
     path::PathBuf,
 };
 
-use axum::Router;
+use axum::{
+    Router,
+    body::Body,
+    http::{
+        HeaderValue, StatusCode, Uri,
+        header::CONTENT_TYPE,
+    },
+    response::{IntoResponse, Response},
+};
 use quasim::sv_simulator::SVSimulatorDebugger;
 use tokio::net::TcpListener;
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::api::{APIConfig, api_router};
+
+mod embedded_frontend {
+    include!(concat!(env!("OUT_DIR"), "/embedded_frontend.rs"));
+}
 
 #[derive(Debug, Clone)]
 pub struct ServerOptions {
@@ -53,11 +65,41 @@ pub async fn run_server(options: ServerOptions, config: APIConfig) -> Result<(),
 fn build_app(static_dir: Option<PathBuf>, config: APIConfig) -> Router {
     let app = Router::new().nest("/api", api_router::<SVSimulatorDebugger>(config));
 
-    match static_dir {
-        Some(dir) => {
-            let index_path = dir.join("index.html");
-            app.fallback_service(ServeDir::new(dir).not_found_service(ServeFile::new(index_path)))
+    if let Some(dir) = static_dir {
+        let index_path = dir.join("index.html");
+        return app.fallback_service(ServeDir::new(dir).not_found_service(ServeFile::new(index_path)));
+    }
+
+    if cfg!(debug_assertions) {
+        app
+    } else {
+        app.fallback(serve_embedded_frontend)
+    }
+}
+
+async fn serve_embedded_frontend(uri: Uri) -> Response {
+    let asset_path = match uri.path().trim_start_matches('/') {
+        "" => "index.html",
+        path => path,
+    };
+
+    let asset = embedded_frontend::EMBEDDED_ASSETS
+        .iter()
+        .find(|asset| asset.path == asset_path)
+        .or_else(|| {
+            embedded_frontend::EMBEDDED_ASSETS
+                .iter()
+                .find(|asset| asset.path == "index.html")
+        });
+
+    match asset {
+        Some(asset) => {
+            let mut response = Response::new(Body::from(asset.bytes));
+            response
+                .headers_mut()
+                .insert(CONTENT_TYPE, HeaderValue::from_static(asset.content_type));
+            response
         }
-        None => app,
+        None => StatusCode::NOT_FOUND.into_response(),
     }
 }

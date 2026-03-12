@@ -62,6 +62,8 @@ export const CRH = 44;
 export const MIN_STEPS = 5;
 export const CREG_BIT_WIDTH = 32;
 export const MAX_CREG_BIT_INDEX = CREG_BIT_WIDTH - 1;
+export const MAX_FULL_STATEVECTOR_QUBITS = 8;
+export const SORTED_STATEVECTOR_TOP_N = 32;
 
 export const COND_OPS = ["==", "!=", "<", "<=", ">", ">="] as const;
 

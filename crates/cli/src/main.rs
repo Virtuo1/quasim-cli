@@ -107,6 +107,20 @@ fn resolve_static_dir(frontend_dist: Option<PathBuf>, api_only: bool) -> Result<
         return Ok(None);
     }
 
+    if !cfg!(debug_assertions) {
+        if let Some(dist_dir) = frontend_dist {
+            if !dist_dir.exists() {
+                bail!(
+                    "frontend dist directory not found at {}.",
+                    dist_dir.display()
+                );
+            }
+            return Ok(Some(dist_dir));
+        }
+
+        return Ok(None);
+    }
+
     let root = workspace_root()?;
     let dist_dir =
         frontend_dist.unwrap_or_else(|| root.join("web").join("circuit-builder").join("dist"));

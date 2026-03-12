@@ -1,7 +1,7 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useRef, useState } from "react";
 
-import { UI_COLORS } from "../constants";
+import { MAX_FULL_STATEVECTOR_QUBITS, SORTED_STATEVECTOR_TOP_N, UI_COLORS } from "../constants";
 import type { ClassicalRegister, DebuggerState, StateVectorResponse } from "../types";
 import { controlStyle, splitHandleStyle, subtleTextStyle } from "../ui/styles";
 import { DebugValueTrackerPanel } from "./DebugValueTrackerPanel";
@@ -153,13 +153,13 @@ function StateVectorPanel({
   onViewModeChange: (mode: "state" | "sorted") => void;
 }) {
   const amplitudes = stateVector?.amplitudes ?? [];
-  const stateVectorHidden = viewMode === "state" && qubitCount > 8;
+  const stateVectorHidden = viewMode === "state" && qubitCount > MAX_FULL_STATEVECTOR_QUBITS;
 
   let bars: StateVectorPlotDatum[] = [];
   let emptyMessage: string | undefined;
 
   if (stateVectorHidden) {
-    emptyMessage = "State vector hidden above 8 qubits";
+    emptyMessage = `State vector hidden above ${MAX_FULL_STATEVECTOR_QUBITS} qubits`;
   } else if (amplitudes.length === 0) {
     emptyMessage = "No debug amplitudes";
   } else {
@@ -174,15 +174,17 @@ function StateVectorPanel({
           onChange={(event) => onViewModeChange(event.target.value === "sorted" ? "sorted" : "state")}
           style={selectStyle}
         >
-          <option value="state">Statevector diagram</option>
+          <option value="state" disabled={qubitCount > MAX_FULL_STATEVECTOR_QUBITS}>
+            Statevector diagram
+          </option>
           <option value="sorted">Most probable states</option>
         </select>
         <div style={selectHintStyle}>
           {viewMode === "state"
-            ? qubitCount > 8
-              ? "Raw basis-order plot is limited to 8 qubits"
+            ? qubitCount > MAX_FULL_STATEVECTOR_QUBITS
+              ? `Raw basis-order plot is limited to ${MAX_FULL_STATEVECTOR_QUBITS} qubits`
               : "Basis states in computational order"
-            : "Top 32 states by probability"}
+            : `Top ${SORTED_STATEVECTOR_TOP_N} states by probability`}
         </div>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
