@@ -27,11 +27,12 @@ pub fn debug_router<T: BackendDebugger>(state: SharedState<T>) -> Router {
         .with_state(state)
 }
 
+// POST /api/debug/build
 async fn debug_build<T: BackendDebugger>(
     State(state): State<SharedState<T>>,
     Json(serialized_circuit): Json<SerializedCircuit>,
 ) -> Result<Json<BuildResponse>, APIError> {
-    let circuit = quasim::circuit::Circuit::try_from(serialized_circuit)?;
+    let circuit = serialized_circuit.into_circuit()?;
     let debugger = T::build(circuit).map_err(|err| APIError::BuildError(err.to_string()))?;
     let session_uuid = Uuid::new_v4();
 

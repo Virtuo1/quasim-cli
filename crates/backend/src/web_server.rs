@@ -3,24 +3,12 @@ use std::{
     path::PathBuf,
 };
 
-use axum::{
-    Json, Router,
-    response::IntoResponse,
-    routing::{get, post},
-};
-use quasim::{
-    circuit::Circuit,
-    simulator::{BuildSimulator, RunnableSimulator},
-    sv_simulator::{SVError, SVSimulator, SVSimulatorDebugger},
-};
-use serde::Serialize;
+use axum::Router;
+use quasim::sv_simulator::SVSimulatorDebugger;
 use tokio::net::TcpListener;
 use tower_http::services::{ServeDir, ServeFile};
 
-use crate::{
-    api::api_router,
-    circuit_parse::{JsonParseError, SerializedCircuit},
-};
+use crate::api::{APIConfig, api_router};
 
 #[derive(Debug, Clone)]
 pub struct ServerOptions {
@@ -47,7 +35,7 @@ pub enum BackendError {
     Serve(#[source] std::io::Error),
 }
 
-pub async fn run_server(options: ServerOptions) -> Result<(), BackendError> {
+pub async fn run_server(options: ServerOptions, config: APIConfig) -> Result<(), BackendError> {
     let listener = TcpListener::bind(options.socket_addr())
         .await
         .map_err(|source| BackendError::Bind {
@@ -55,15 +43,15 @@ pub async fn run_server(options: ServerOptions) -> Result<(), BackendError> {
             source,
         })?;
 
-    let app = build_app(options.static_dir);
+    let app = build_app(options.static_dir, config);
 
     axum::serve(listener, app)
         .await
         .map_err(BackendError::Serve)
 }
 
-fn build_app(static_dir: Option<PathBuf>) -> Router {
-    let app = Router::new().nest("/api", api_router::<SVSimulatorDebugger>());
+fn build_app(static_dir: Option<PathBuf>, config: APIConfig) -> Router {
+    let app = Router::new().nest("/api", api_router::<SVSimulatorDebugger>(config));
 
     match static_dir {
         Some(dir) => {

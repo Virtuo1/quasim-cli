@@ -6,8 +6,8 @@ use std::{
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use quasim::{circuit::Circuit, debug_terminal::DebugTerminal, sv_simulator::SVSimulatorDebugger};
-use quasim_backend::circuit_parse::SerializedCircuit;
 use quasim_backend::web_server::{ServerOptions, run_server};
+use quasim_backend::{api::APIConfig, circuit_parse::SerializedCircuit};
 
 #[derive(Debug, Parser)]
 #[command(name = "quasim-cli")]
@@ -27,6 +27,8 @@ enum Command {
         port: u16,
         #[arg(long)]
         frontend_dist: Option<PathBuf>,
+        #[arg(long, default_value_t = 16)]
+        max_qubits: usize,
         #[arg(long, default_value_t = false)]
         api_only: bool,
         #[arg(long, default_value_t = false)]
@@ -48,6 +50,7 @@ async fn main() -> Result<()> {
             host,
             port,
             frontend_dist,
+            max_qubits,
             api_only,
             open_browser,
         } => {
@@ -59,11 +62,16 @@ async fn main() -> Result<()> {
                 webbrowser::open(&url).context("failed to open browser")?;
             }
 
-            run_server(ServerOptions {
-                host,
-                port,
-                static_dir,
-            })
+            run_server(
+                ServerOptions {
+                    host,
+                    port,
+                    static_dir,
+                },
+                APIConfig {
+                    max_qubits: Some(max_qubits),
+                },
+            )
             .await
             .map_err(Into::into)
         }
@@ -83,7 +91,7 @@ async fn main() -> Result<()> {
                         format!("failed to convert serialized circuit from {path_display}")
                     })?
                 }
-                None => Circuit::new(0),
+                None => Circuit::new(0).into(),
             };
 
             let mut term = DebugTerminal::<SVSimulatorDebugger>::new(circuit)

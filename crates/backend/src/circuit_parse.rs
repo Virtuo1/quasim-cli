@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs::read_to_string};
 
-use quasim::{circuit::Circuit, expr_dsl::Expr, gate::GateError};
+use quasim::{
+    circuit::{Circuit, CircuitBehaviour, HybridCircuit},
+    expr_dsl::Expr,
+    gate::GateError,
+};
 
 /// DTOs matching the client JSON export format exactly.
 ///
@@ -138,16 +142,17 @@ impl SerializedCircuit {
         Self::from_json_str(&file_string)
     }
 
-    pub fn into_circuit(self) -> Result<Circuit, JsonParseError> {
-        Circuit::try_from(self)
+    pub fn into_circuit(self) -> Result<Circuit<HybridCircuit>, JsonParseError> {
+        Circuit::<HybridCircuit>::try_from(self)
     }
 }
 
-impl TryFrom<SerializedCircuit> for Circuit {
+impl TryFrom<SerializedCircuit> for Circuit<HybridCircuit> {
     type Error = JsonParseError;
 
     fn try_from(value: SerializedCircuit) -> Result<Self, Self::Error> {
-        let mut circuit = Circuit::new(value.qubits.unwrap_or_default());
+        let mut circuit: Circuit<HybridCircuit> =
+            Circuit::new(value.qubits.unwrap_or_default()).into();
 
         for reg in &value.classical_registers {
             circuit = circuit.new_reg(reg);
@@ -254,10 +259,10 @@ impl TryFrom<SerializedCircuit> for Circuit {
 }
 
 fn begin_step(
-    mut circuit: Circuit,
+    mut circuit: Circuit<HybridCircuit>,
     step: usize,
     step_to_condition: &HashMap<usize, Expr>,
-) -> Circuit {
+) -> Circuit<HybridCircuit> {
     circuit = circuit.label(get_step_label(step));
 
     if let Some(expr) = step_to_condition.get(&step) {
@@ -267,12 +272,12 @@ fn begin_step(
     circuit
 }
 
-fn apply_unitary(
-    circuit: Circuit,
+fn apply_unitary<B: CircuitBehaviour>(
+    circuit: Circuit<B>,
     op: &InstructionDefinition,
-    gate: fn(Circuit, usize) -> Circuit,
-    cgate: fn(Circuit, &[usize], usize) -> Circuit,
-) -> Result<Circuit, JsonParseError> {
+    gate: fn(Circuit<B>, usize) -> Circuit<B>,
+    cgate: fn(Circuit<B>, &[usize], usize) -> Circuit<B>,
+) -> Result<Circuit<B>, JsonParseError> {
     let target = required_qubit(&op)?;
 
     Ok(if let Some(controls) = &op.controls {
@@ -282,12 +287,12 @@ fn apply_unitary(
     })
 }
 
-fn apply_param_unitary(
-    circuit: Circuit,
+fn apply_param_unitary<B: CircuitBehaviour>(
+    circuit: Circuit<B>,
     op: &InstructionDefinition,
-    gate: fn(Circuit, f64, usize) -> Circuit,
-    cgate: fn(Circuit, f64, &[usize], usize) -> Circuit,
-) -> Result<Circuit, JsonParseError> {
+    gate: fn(Circuit<B>, f64, usize) -> Circuit<B>,
+    cgate: fn(Circuit<B>, f64, &[usize], usize) -> Circuit<B>,
+) -> Result<Circuit<B>, JsonParseError> {
     let target = required_qubit(&op)?;
     let param = required_params(&op, 1)?[0];
 
@@ -370,7 +375,10 @@ fn get_step_label(step: usize) -> String {
     format!("_step{step}")
 }
 
-fn ensure_register(circuit: &Circuit, reg: &str) -> Result<(), JsonParseError> {
+fn ensure_register<B: CircuitBehaviour>(
+    circuit: &Circuit<B>,
+    reg: &str,
+) -> Result<(), JsonParseError> {
     if circuit.registers().contains(reg) {
         Ok(())
     } else {
