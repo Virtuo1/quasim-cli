@@ -54,14 +54,14 @@ where
         parts: &mut Parts,
         state: &SharedState<T>,
     ) -> Result<Self, Self::Rejection> {
-        let Path(uuid) = Path::<Uuid>::from_request_parts(parts, state)
+        let Path(session_id) = Path::<Uuid>::from_request_parts(parts, state)
             .await
             .map_err(|_| APIError::SessionNotFound)?;
 
         let state = state.lock().await;
         state
             .sessions
-            .get(&uuid)
+            .get(&session_id)
             .cloned()
             .ok_or(APIError::SessionNotFound)
     }

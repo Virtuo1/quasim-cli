@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use quasim::{expr_dsl::Value, simulator::HybridSimulator};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::api::debug_session::DebugSessionState;
 use nalgebra::{Complex, DVector};
@@ -67,6 +68,17 @@ pub struct StateVectorQuery {
 }
 
 // Response types
+
+#[derive(Debug, Serialize)]
+pub struct BuildResponse {
+    session_id: Uuid,
+}
+
+impl BuildResponse {
+    pub fn from_parts(session_id: Uuid) -> Self {
+        Self { session_id }
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct StateResponse {

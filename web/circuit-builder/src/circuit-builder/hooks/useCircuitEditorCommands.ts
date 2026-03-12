@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { normalizeSelectionBox, selectionHitsElement } from "../components/canvas/selection";
 import type {
@@ -28,6 +28,7 @@ import {
 import type { CircuitEditorActions, CircuitEditorStores, UseCircuitEditorArgs } from "./circuitEditorTypes";
 import {
   buildDebugSession as buildDebugSessionRequest,
+  destroyDebugSession as destroyDebugSessionRequest,
   continueDebugSession as continueDebugSessionRequest,
   fetchDebugSessionBasisAmplitude,
   fetchDebugSessionRegisters,
@@ -41,7 +42,10 @@ export function useCircuitEditorCommands(
   stores: CircuitEditorStores,
 ): CircuitEditorActions {
   const { document: doc, ui } = stores;
+  const { debuggerRef, setDebuggerState } = doc;
   const basisAmplitudeRequestsRef = useRef(new Set<number>());
+  const destroyingSessionIdsRef = useRef(new Set<string>());
+  const hasMountedDocumentRef = useRef(false);
 
   const createIdleDebuggerState = useCallback(
     (): DebuggerState => ({
@@ -68,6 +72,36 @@ export function useCircuitEditorCommands(
     basisAmplitudeRequestsRef.current.clear();
     doc.setDebuggerState(createIdleDebuggerState());
   }, [createIdleDebuggerState, doc]);
+
+  const destroyDebuggerSessionById = useCallback(async (sessionId: string) => {
+    if (destroyingSessionIdsRef.current.has(sessionId)) {
+      return;
+    }
+
+    destroyingSessionIdsRef.current.add(sessionId);
+    basisAmplitudeRequestsRef.current.clear();
+
+    try {
+      await destroyDebugSessionRequest(sessionId);
+    } catch {
+      // Session cleanup is best-effort. The local editor should still move on.
+    } finally {
+      destroyingSessionIdsRef.current.delete(sessionId);
+    }
+  }, []);
+
+  const closeDebuggerSession = useCallback(
+    async (sessionId: string | null = doc.debuggerRef.current.sessionId) => {
+      if (!sessionId) {
+        resetDebuggerSession();
+        return;
+      }
+
+      await destroyDebuggerSessionById(sessionId);
+      doc.setDebuggerState((current) => (current.sessionId === sessionId ? createIdleDebuggerState() : current));
+    },
+    [createIdleDebuggerState, destroyDebuggerSessionById, doc, resetDebuggerSession],
+  );
 
   const resetUiState = useCallback(() => {
     ui.setSelectedIds([]);
@@ -170,7 +204,50 @@ export function useCircuitEditorCommands(
     await refreshDebugSessionBySessionId(sessionId);
   }, [doc.debuggerRef, refreshDebugSessionBySessionId]);
 
+  useEffect(() => {
+    if (!hasMountedDocumentRef.current) {
+      hasMountedDocumentRef.current = true;
+      return;
+    }
+
+    const sessionId = debuggerRef.current.sessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    void (async () => {
+      await destroyDebuggerSessionById(sessionId);
+      setDebuggerState((current) => (current.sessionId === sessionId ? createIdleDebuggerState() : current));
+    })();
+  }, [
+    createIdleDebuggerState,
+    destroyDebuggerSessionById,
+    doc.classicalRegs,
+    doc.customGateDefinitions,
+    doc.elements,
+    doc.nQ,
+    debuggerRef,
+    setDebuggerState,
+  ]);
+
+  useEffect(
+    () => () => {
+      const sessionId = debuggerRef.current.sessionId;
+      if (!sessionId) {
+        return;
+      }
+
+      void destroyDebuggerSessionById(sessionId);
+    },
+    [destroyDebuggerSessionById, debuggerRef],
+  );
+
   const buildDebugSession = useCallback(async () => {
+    const previousSessionId = doc.debuggerRef.current.sessionId;
+    if (previousSessionId) {
+      await closeDebuggerSession(previousSessionId);
+    }
+
     setDebuggerMode("building");
     basisAmplitudeRequestsRef.current.clear();
 
@@ -205,7 +282,7 @@ export function useCircuitEditorCommands(
         error: error instanceof Error ? error.message : "Failed to build debugger session.",
       });
     }
-  }, [createIdleDebuggerState, doc, refreshDebugSessionBySessionId, setDebuggerMode]);
+  }, [closeDebuggerSession, createIdleDebuggerState, doc, refreshDebugSessionBySessionId, setDebuggerMode]);
 
   const stepDebugSession = useCallback(async () => {
     const sessionId = doc.debuggerRef.current.sessionId;
@@ -808,7 +885,7 @@ export function useCircuitEditorCommands(
           doc.setCustomGateDefinitions(next.customGateDefinitions);
           doc.setElements(next.elements);
           doc.setNewRegName("");
-          resetDebuggerSession();
+          void closeDebuggerSession();
           resetUiState();
         } catch {
           window.alert("Invalid circuit JSON.");
@@ -817,16 +894,16 @@ export function useCircuitEditorCommands(
       reader.readAsText(file);
     };
     input.click();
-  }, [doc, resetUiState]);
+  }, [closeDebuggerSession, doc, resetUiState]);
 
   const clearCircuit = useCallback(() => {
     doc.setElements([]);
     doc.setCregs([]);
     doc.setCustomGateDefinitions([]);
     doc.setNewRegName("");
-    resetDebuggerSession();
+    void closeDebuggerSession();
     resetUiState();
-  }, [doc, resetDebuggerSession, resetUiState]);
+  }, [closeDebuggerSession, doc, resetUiState]);
 
   const assignMeasurementRegister = useCallback(
     (registerName: string, bitIndex: number) => {

@@ -25,16 +25,6 @@ export function useCircuitDocumentState(): CircuitDocumentStore {
   const classicalRegsRef = useSyncedRef(classicalRegs);
   const customGateDefinitionsRef = useSyncedRef(customGateDefinitions);
   const debuggerRef = useSyncedRef(debuggerState);
-  const hasMountedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
-
-    setDebuggerState((current) => (current.sessionId ? createIdleDebuggerState() : current));
-  }, [classicalRegs, customGateDefinitions, elements, nQ]);
 
   const setElements = useCallback((updater: ElementUpdater) => {
     setRawElements((prev) => {

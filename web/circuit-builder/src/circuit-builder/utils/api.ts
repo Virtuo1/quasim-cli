@@ -53,6 +53,15 @@ export async function continueDebugSession(sessionId: string): Promise<StateResp
   return requestJSON<StateResponse>(`/api/debug/${sessionId}/continue`);
 }
 
+export async function destroyDebugSession(sessionId: string): Promise<void> {
+  const response = await fetch(`/api/debug/${sessionId}`, { method: "DELETE" });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+}
+
 async function requestJSON<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
 
